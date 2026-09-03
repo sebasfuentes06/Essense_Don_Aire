@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" role="img" aria-labelledby="title desc">
+  <title id="title">Essence Don Aire</title>
+  <desc id="desc">Logotipo de Essence Don Aire con icono y texto.</desc>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8df8a"/>
+      <stop offset="50%" stop-color="#d6a93b"/>
+      <stop offset="100%" stop-color="#b6821a"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(16,12)">
+    <rect x="0" y="0" width="96" height="96" rx="22" fill="#0b1117"/>
+    <path d="M48 18c14 0 25 11 25 25 0 8-3 15-9 20l-13 10-13-10c-6-5-9-12-9-20 0-14 11-25 25-25zm0 16c-5 0-9 4-9 9s4 9 9 9 9-4 9-9-4-9-9-9zm-20 31h40v7H28v-7zm9 14h22v7H37v-7z" fill="url(#gold)"/>
+    <circle cx="71" cy="33" r="5" fill="#fef3c7" opacity="0.9"/>
+  </g>
+  <g transform="translate(132,26)">
+    <text x="0" y="28" fill="#1e293b" font-size="30" font-weight="700" font-family="Segoe UI, Arial, sans-serif" letter-spacing="0.5">Essence</text>
+    <text x="0" y="62" fill="#1e293b" font-size="30" font-weight="600" font-family="Segoe UI, Arial, sans-serif" letter-spacing="0.5">Don Aire</text>
+    <rect x="1" y="76" width="180" height="4" rx="2" fill="url(#gold)" opacity="0.9"/>
+  </g>
+</svg>

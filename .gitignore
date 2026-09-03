@@ -1,0 +1,10 @@
+node_modules/
+frontend/node_modules/
+.vite/
+dist/
+build/
+.env
+.env.*
+.DS_Store
+*.log
+coverage/
