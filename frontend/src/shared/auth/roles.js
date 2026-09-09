@@ -41,6 +41,9 @@ const ROLE_LIST = [
  * "modulo.delete" -> puede eliminar registros
  * "modulo.own"    -> solo ve/gestiona sus propios registros
  * "modulo.toggle" -> puede activar/desactivar el registro (switch de estado)
+ * "orders.status"  -> puede mover el pedido entre estados
+ * "orders.convert" -> puede convertir el pedido en venta
+ * "orders.cancel"  -> puede cancelar su propio pedido mientras siga pendiente
  */
 const PERMISSIONS_BY_ROLE = {
   [ROLES.ADMIN]: [
@@ -49,6 +52,7 @@ const PERMISSIONS_BY_ROLE = {
     "products.view", "products.create", "products.edit", "products.delete",
     "categories.view", "categories.create", "categories.edit", "categories.delete",
     "sales.view", "sales.create", "sales.edit", "sales.delete", "sales.cancel",
+    "orders.view", "orders.create", "orders.edit", "orders.delete", "orders.status", "orders.convert",
     "purchases.view", "purchases.create", "purchases.edit", "purchases.delete",
     "customers.view", "customers.create", "customers.edit", "customers.delete", "customers.toggle",
     "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete", "suppliers.toggle",
@@ -67,6 +71,8 @@ const PERMISSIONS_BY_ROLE = {
     "products.view", "products.edit",
     "categories.view", "categories.create", "categories.edit",
     "sales.view", "sales.create", "sales.own", "sales.cancel",
+    // "orders.own" limita edicion y borrado a los pedidos aun pendientes
+    "orders.view", "orders.own", "orders.create", "orders.edit", "orders.delete", "orders.convert",
     "purchases.view",
     "customers.view", "customers.create", "customers.edit",
     "suppliers.view",
@@ -78,6 +84,8 @@ const PERMISSIONS_BY_ROLE = {
   [ROLES.CLIENT]: [
     "dashboard.view",
     "catalog.view",
+    // el Cliente crea pedidos desde el carrito y solo puede cancelar los pendientes
+    "orders.view", "orders.own", "orders.create", "orders.cancel",
     "profile.view", "profile.edit"
   ]
 };

@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes, useNavigate } from "react-router";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, useAuth, ROLES } from "../shared/auth";
+import { OrdersProvider } from "../shared/orders";
 import { ProtectedRoute } from "../shared/routes";
 import { AdminLayout } from "./Admin/components/layout";
 import {
   Dashboard,
+  Orders,
   ProductCatalog,
   ProductsManagement,
   Categories,
@@ -84,6 +86,9 @@ function AppRoutes() {
           <Route element={<ProtectedRoute permission="categories.view" />}>
             <Route path="categorias" element={<Categories />} />
           </Route>
+          <Route element={<ProtectedRoute permission="orders.view" />}>
+            <Route path="pedidos" element={<Orders />} />
+          </Route>
           <Route element={<ProtectedRoute permission="sales.view" />}>
             <Route path="ventas" element={<Sales />} />
           </Route>
@@ -120,7 +125,9 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppRoutes />
+        <OrdersProvider>
+          <AppRoutes />
+        </OrdersProvider>
       </AuthProvider>
     </ThemeProvider>
   );

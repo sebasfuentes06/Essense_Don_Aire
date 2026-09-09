@@ -38,14 +38,23 @@ function ClientHome() {
         <p className="text-muted-foreground mt-1">
           Explora nuestras fragancias y descubre las novedades de la temporada.
         </p>
-        <button
-          type="button"
-          onClick={() => navigate("/panel/catalogo")}
-          className="mt-5 inline-flex items-center gap-2 h-11 px-5 rounded-lg bg-primary text-primary-foreground font-semibold transition-all hover:opacity-90 shadow-md"
-        >
-          Ver catálogo
-          <ArrowRight className="h-4 w-4" />
-        </button>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => navigate("/panel/catalogo")}
+            className="inline-flex items-center gap-2 h-11 px-5 rounded-lg bg-primary text-primary-foreground font-semibold transition-all hover:opacity-90 shadow-md"
+          >
+            Ver catálogo
+            <ArrowRight className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/panel/pedidos")}
+            className="inline-flex items-center gap-2 h-11 px-5 rounded-lg border border-primary text-primary font-semibold transition-all hover:bg-primary/10"
+          >
+            Mis pedidos
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

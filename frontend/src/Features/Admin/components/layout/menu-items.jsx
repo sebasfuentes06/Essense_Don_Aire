@@ -8,6 +8,7 @@ import {
   Truck,
   Shield,
   ShoppingBag,
+  ClipboardList,
   LayoutGrid,
   FileBarChart,
   Home
@@ -48,7 +49,15 @@ const MENU_GROUPS_DEF = [
   {
     id: "operaciones",
     label: "OPERACIONES",
+    labelByRole: { [ROLES.CLIENT]: "PEDIDOS" },
     items: [
+      {
+        icon: ClipboardList,
+        label: "Pedidos",
+        path: "/panel/pedidos",
+        permission: "orders.view",
+        labelByRole: { [ROLES.CLIENT]: "Mis pedidos" }
+      },
       {
         icon: ShoppingCart,
         label: "Ventas",
@@ -100,6 +109,7 @@ function getMenuGroups(role) {
   return MENU_GROUPS_DEF
     .map((group) => ({
       ...group,
+      label: group.labelByRole?.[role] ?? group.label,
       items: group.items
         .filter((item) => !item.permission || roleCan(role, item.permission))
         .map((item) => resolveItem(item, role))

@@ -40,9 +40,22 @@
 --     el mock de compras ya trae un arreglo `payments` pensado para
 --     esto.
 --
--- Si más adelante agregas módulos de Marca, Presentación, Pedidos
+-- Si más adelante agregas módulos de Marca, Presentación
 -- o Campañas en el frontend, esas tablas se pueden volver a agregar
 -- sin tocar el resto del esquema.
+--
+-- Cambios de la v4 (módulo Pedidos):
+--   - Se reincorporan `pedidos` y `detalle_pedido`, ahora sí con módulo
+--     en el frontend: el Cliente crea pedidos desde el catálogo y sigue
+--     su estado; el Vendedor los gestiona y los convierte en venta.
+--   - `pedidos.id_venta` es la traza de la conversión: mientras es NULL
+--     el pedido no se ha convertido; cuando se confirma como venta se
+--     llena con el id de la venta generada (relación 1:1 opcional).
+--   - `pedidos.id_usuario` (el vendedor) es NULLABLE a propósito: un
+--     pedido creado por el propio cliente desde la web todavía no tiene
+--     vendedor asignado.
+--   - `pedidos.canal` distingue de dónde entró el pedido (web, WhatsApp
+--     o punto físico), tal como aparece en el story mapping.
 -- ============================================================
 
 -- ============================================================
@@ -298,7 +311,70 @@ CREATE TABLE pagos_ventas (
 );
 
 -- ============================================================
--- 8. DATOS SEMILLA (catálogos que el frontend espera encontrar)
+-- 8. PEDIDOS (solicitudes del cliente, previas a la venta)
+-- ============================================================
+-- Flujo: el Cliente arma su pedido desde el catálogo (estado 'pending').
+-- El Vendedor o el Administrador lo confirma ('confirmed') y puede
+-- convertirlo en venta, momento en el que se llena `id_venta`.
+-- El Cliente solo puede cancelar mientras siga en 'pending'.
+
+CREATE TABLE pedidos (
+    id_pedido       SERIAL PRIMARY KEY,
+    folio           VARCHAR(20) NOT NULL UNIQUE,   -- OrdersTable: "PED-001"
+    id_cliente      INT NOT NULL,
+    id_usuario      INT,                            -- vendedor que lo atiende (NULL si lo creó el cliente)
+    id_venta        INT UNIQUE,                     -- se llena al convertir el pedido en venta
+    fecha_pedido    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_entrega   DATE,                           -- fecha estimada de entrega
+    canal           VARCHAR(20) NOT NULL DEFAULT 'web',
+    subtotal        NUMERIC(12,2) NOT NULL DEFAULT 0,
+    descuento       NUMERIC(12,2) NOT NULL DEFAULT 0,
+    total           NUMERIC(12,2) NOT NULL DEFAULT 0,
+    observaciones   VARCHAR(250),
+    estado          VARCHAR(20) NOT NULL DEFAULT 'pending',
+    CONSTRAINT chk_pedidos_estado
+        CHECK (estado IN ('pending', 'confirmed', 'cancelled')), -- OrdersTable.statusConfig
+    CONSTRAINT chk_pedidos_canal
+        CHECK (canal IN ('web', 'whatsapp', 'fisico')),
+    CONSTRAINT chk_pedidos_totales
+        CHECK (subtotal >= 0 AND descuento >= 0 AND total >= 0),
+    -- un pedido solo puede apuntar a una venta si ya fue confirmado
+    CONSTRAINT chk_pedidos_conversion
+        CHECK (id_venta IS NULL OR estado = 'confirmed'),
+    CONSTRAINT fk_pedidos_cliente
+        FOREIGN KEY (id_cliente) REFERENCES usuarios (id_usuario),
+    CONSTRAINT fk_pedidos_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario),
+    CONSTRAINT fk_pedidos_venta
+        FOREIGN KEY (id_venta) REFERENCES ventas (id_venta)
+);
+
+CREATE INDEX idx_pedidos_cliente ON pedidos (id_cliente);
+CREATE INDEX idx_pedidos_estado  ON pedidos (estado);
+
+CREATE TABLE detalle_pedido (
+    id_detalle_pedido SERIAL PRIMARY KEY,
+    id_pedido         INT NOT NULL,
+    id_producto       INT NOT NULL,
+    cantidad          INT NOT NULL,
+    precio_unitario   NUMERIC(12,2) NOT NULL,
+    descuento         NUMERIC(12,2) NOT NULL DEFAULT 0,
+    subtotal          NUMERIC(12,2) NOT NULL,
+    CONSTRAINT fk_detpedido_pedidos
+        FOREIGN KEY (id_pedido) REFERENCES pedidos (id_pedido)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_detpedido_productos
+        FOREIGN KEY (id_producto) REFERENCES productos (id_producto),
+    CONSTRAINT uq_detpedido_producto
+        UNIQUE (id_pedido, id_producto),
+    CONSTRAINT chk_detpedido_cantidad CHECK (cantidad > 0),
+    CONSTRAINT chk_detpedido_precio CHECK (precio_unitario >= 0),
+    CONSTRAINT chk_detpedido_descuento CHECK (descuento >= 0),
+    CONSTRAINT chk_detpedido_subtotal CHECK (subtotal >= 0)
+);
+
+-- ============================================================
+-- 9. DATOS SEMILLA (catálogos que el frontend espera encontrar)
 -- ============================================================
 
 INSERT INTO roles (nombre, descripcion, estado) VALUES
@@ -341,7 +417,7 @@ INSERT INTO categorias (nombre, descripcion, estado) VALUES
     ('Niños',      'Fragancias suaves para niños',            FALSE);
 
 -- ============================================================
--- 9. VISTAS DE CONTRATO PARA EL FRONTEND
+-- 10. VISTAS DE CONTRATO PARA EL FRONTEND
 -- ============================================================
 -- Las tablas mantienen nombres normalizados y relaciones por ID. Estas
 -- vistas exponen el contrato que usa React (camelCase, nombres legibles
@@ -504,6 +580,39 @@ LEFT JOIN detalle_compra dc ON dc.id_compra = c.id_compra
 LEFT JOIN productos pr ON pr.id_producto = dc.id_producto
 GROUP BY c.id_compra, p.nombre;
 
+CREATE OR REPLACE VIEW vw_frontend_pedidos AS
+SELECT
+    p.id_pedido AS id,
+    p.folio,
+    p.fecha_pedido AS date,
+    p.fecha_entrega AS "deliveryDate",
+    p.id_cliente AS "customerId",
+    cli.nombre AS customer,
+    p.id_usuario AS "sellerId",
+    ven.nombre AS seller,
+    p.canal AS channel,
+    p.subtotal,
+    p.descuento AS discount,
+    p.total,
+    p.observaciones AS notes,
+    p.estado AS status,
+    p.id_venta AS "saleId",
+    (p.id_venta IS NOT NULL) AS "converted",
+    COALESCE(json_agg(json_build_object(
+        'productId', dp.id_producto,
+        'productName', pr.nombre,
+        'quantity', dp.cantidad,
+        'unitPrice', dp.precio_unitario,
+        'discount', dp.descuento,
+        'subtotal', dp.subtotal
+    )) FILTER (WHERE dp.id_detalle_pedido IS NOT NULL), '[]'::json) AS items
+FROM pedidos p
+JOIN usuarios cli ON cli.id_usuario = p.id_cliente
+LEFT JOIN usuarios ven ON ven.id_usuario = p.id_usuario
+LEFT JOIN detalle_pedido dp ON dp.id_pedido = p.id_pedido
+LEFT JOIN productos pr ON pr.id_producto = dp.id_producto
+GROUP BY p.id_pedido, cli.nombre, ven.nombre;
+
 -- ============================================================
--- FIN DEL SCRIPT — 15 tablas + 8 vistas de contrato
+-- FIN DEL SCRIPT — 17 tablas + 9 vistas de contrato
 -- ============================================================

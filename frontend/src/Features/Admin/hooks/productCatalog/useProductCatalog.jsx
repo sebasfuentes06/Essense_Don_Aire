@@ -89,6 +89,7 @@ function useProductCatalog() {
   const handleRemoveFromCart = (productId) => {
     setCartItems((items) => items.filter((item) => item.id !== productId));
   };
+  const clearCart = () => setCartItems([]);
   return {
     categories,
     products,
@@ -116,7 +117,8 @@ function useProductCatalog() {
     setIsCartOpen,
     handleAddToCart,
     handleUpdateCartQuantity,
-    handleRemoveFromCart
+    handleRemoveFromCart,
+    clearCart
   };
 }
 export {

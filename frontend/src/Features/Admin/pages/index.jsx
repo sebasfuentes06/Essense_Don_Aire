@@ -1,6 +1,7 @@
 import { Categories } from "./categories/Categories";
 import { Customers } from "./customers/Customers";
 import { Dashboard } from "./dashboard/Dashboard";
+import { Orders } from "./orders/Orders";
 import { ProductCatalog } from "./productCatalog/ProductCatalog";
 import { ProductsManagement } from "./productsManagement/ProductsManagement";
 import { Purchases } from "./purchases/Purchases";
@@ -13,6 +14,7 @@ export {
   Categories,
   Customers,
   Dashboard,
+  Orders,
   ProductCatalog,
   ProductsManagement,
   Purchases,
