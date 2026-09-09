@@ -1,4 +1,4 @@
 import { useDashboard } from "./useDashboard";
-export {
-  useDashboard
-};
+import { useSellerDashboard } from "./useSellerDashboard";
+
+export { useDashboard, useSellerDashboard };

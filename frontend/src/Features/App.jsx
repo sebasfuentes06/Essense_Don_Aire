@@ -6,6 +6,7 @@ import { ProtectedRoute } from "../shared/routes";
 import { AdminLayout } from "./Admin/components/layout";
 import {
   Dashboard,
+  SellerDashboard,
   Orders,
   ProductCatalog,
   ProductsManagement,
@@ -15,8 +16,7 @@ import {
   Sales,
   Purchases,
   Users,
-  Roles,
-  Reports
+  Roles
 } from "./Admin/pages";
 import { ClientHome } from "./Client/pages";
 import { MyProfile } from "./Account/pages";
@@ -28,7 +28,9 @@ import { Register } from "./Auth/pages/Register";
 /** Inicio del panel: cada rol aterriza en la vista que le corresponde. */
 function RoleHome() {
   const { role } = useAuth();
-  return role === ROLES.CLIENT ? <ClientHome /> : <Dashboard />;
+  if (role === ROLES.CLIENT) return <ClientHome />;
+  if (role === ROLES.SELLER) return <SellerDashboard />;
+  return <Dashboard />;
 }
 
 /** Rutas publicas: si ya hay sesion, no tiene sentido volver a login/registro. */
@@ -106,9 +108,6 @@ function AppRoutes() {
           </Route>
           <Route element={<ProtectedRoute permission="roles.view" />}>
             <Route path="roles" element={<Roles />} />
-          </Route>
-          <Route element={<ProtectedRoute permission="reports.view" />}>
-            <Route path="reportes" element={<Reports />} />
           </Route>
           <Route element={<ProtectedRoute permission="profile.view" />}>
             <Route path="mi-perfil" element={<MyProfile />} />

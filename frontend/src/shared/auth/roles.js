@@ -58,7 +58,6 @@ const PERMISSIONS_BY_ROLE = {
     "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete", "suppliers.toggle",
     "users.view", "users.create", "users.edit", "users.delete",
     "roles.view", "roles.create", "roles.edit", "roles.delete",
-    "reports.view",
     "profile.view", "profile.edit"
   ],
 

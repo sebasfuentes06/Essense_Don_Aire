@@ -255,5 +255,7 @@ function useSales() {
   };
 }
 export {
-  useSales
+  useSales,
+  mockSales,
+  mockSellers
 };

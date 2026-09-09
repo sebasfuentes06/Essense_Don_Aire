@@ -10,7 +10,6 @@ import {
   ShoppingBag,
   ClipboardList,
   LayoutGrid,
-  FileBarChart,
   Home
 } from "lucide-react";
 import { ROLES, roleCan } from "../../../../shared/auth/roles";
@@ -81,8 +80,7 @@ const MENU_GROUPS_DEF = [
     label: "ADMINISTRACIÓN",
     items: [
       { icon: UserCircle, label: "Usuarios", path: "/panel/usuarios", permission: "users.view" },
-      { icon: Shield, label: "Roles", path: "/panel/roles", permission: "roles.view" },
-      { icon: FileBarChart, label: "Reportes", path: "/panel/reportes", permission: "reports.view" }
+      { icon: Shield, label: "Roles", path: "/panel/roles", permission: "roles.view" }
     ]
   },
   {
