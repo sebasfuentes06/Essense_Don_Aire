@@ -1,9 +1,21 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { Plus, Mail } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
+import { ExportButton, PrintButton } from "../../../../shared/components/ui/ExportButton";
 import { useUsers } from "../../hooks/users";
 import { UserStats, UserFilters, UserTable, UserFormModal, UserDetailModal } from "../../components/users";
+
+const userColumns = [
+  { key: "name", header: "Usuario" },
+  { key: "email", header: "Correo" },
+  { key: "phone", header: "Teléfono" },
+  { key: "role", header: "Rol" },
+  { header: "Estado", value: (row) => (row.status === "active" ? "Activo" : "Inactivo") },
+  { key: "lastLogin", header: "Último acceso", format: "date" },
+  { key: "joinDate", header: "Fecha de ingreso", format: "date" }
+];
+
 function Users() {
   const {
     searchQuery,
@@ -60,11 +72,11 @@ function Users() {
         })]
       }), /* @__PURE__ */jsxs("div", {
         className: "flex gap-3",
-        children: [/* @__PURE__ */jsxs(Button, {
-          children: [/* @__PURE__ */jsx(Mail, {
-            className: "h-5 w-5"
-          }), "Invitar"]
-        }), /* @__PURE__ */jsxs(Button, {
+        children: [/* @__PURE__ */jsx(ExportButton, {
+          name: "usuarios",
+          rows: sortedUsers,
+          columns: userColumns
+        }), /* @__PURE__ */jsx(PrintButton, {}), /* @__PURE__ */jsxs(Button, {
           onClick: handleNewUser,
           children: [/* @__PURE__ */jsx(Plus, {
             className: "h-5 w-5"

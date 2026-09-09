@@ -50,7 +50,8 @@ function Sales() {
   return /* @__PURE__ */jsxs("div", {
     className: "space-y-6",
     children: [/* @__PURE__ */jsx(SalesHeader, {
-      onNewSale: handleNewSale
+      onNewSale: handleNewSale,
+      rows: filtered
     }), /* @__PURE__ */jsx(SalesStats, {
       completedCount,
       totalRevenue,

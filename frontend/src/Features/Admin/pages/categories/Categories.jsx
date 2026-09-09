@@ -43,7 +43,8 @@ function Categories() {
   return /* @__PURE__ */jsxs("div", {
     className: "space-y-6",
     children: [/* @__PURE__ */jsx(CategoriesHeader, {
-      onNewCategory: openNewCategoryModal
+      onNewCategory: openNewCategoryModal,
+      rows: sortedCategories
     }), /* @__PURE__ */jsx(CategoriesStats, {
       categories
     }), /* @__PURE__ */jsx(CategoriesFilters, {

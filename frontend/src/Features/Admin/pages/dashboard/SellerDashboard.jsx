@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
 import { ArrowRight, ClipboardList } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
+import { PrintButton } from "../../../../shared/components/ui/ExportButton";
 import { useSellerDashboard } from "../../hooks/dashboard";
 import {
   DashboardStats,
@@ -32,9 +33,12 @@ function SellerDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Hola, {firstName}</h1>
-        <p className="text-muted-foreground">Este es el resumen de tu propia gestión</p>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Hola, {firstName}</h1>
+          <p className="text-muted-foreground">Este es el resumen de tu propia gestión</p>
+        </div>
+        <PrintButton label="Exportar a PDF" />
       </div>
 
       <DashboardStats stats={stats} />

@@ -1,0 +1,61 @@
+/* ============================================================
+   Estilos de impresión
+   ------------------------------------------------------------
+   Se usan cuando la persona imprime o guarda como PDF desde el
+   botón "PDF". Dejan en la hoja solo el contenido de la pantalla:
+   fuera el menú lateral, la barra superior, el pie, los filtros
+   y los botones de acción.
+   ============================================================ */
+@media print {
+  aside,
+  header,
+  footer,
+  button,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  main {
+    overflow: visible !important;
+  }
+
+  /* las tablas no deben cortarse a la mitad de una fila */
+  table {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-collapse: collapse;
+  }
+
+  tr,
+  img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  /* tinta: fondos claros y texto negro */
+  * {
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  .rounded-xl,
+  .rounded-2xl {
+    border: 1px solid #ddd !important;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+}

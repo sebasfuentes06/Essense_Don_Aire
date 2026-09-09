@@ -1,10 +1,25 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { Plus, Users } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
+import { ExportButton, PrintButton } from "../../../../shared/components/ui/ExportButton";
 import { useCustomers } from "../../hooks/customers";
 import { CustomerStats, CustomerFilters, CustomerTable, CustomerFormModal, CustomerDetailModal } from "../../components/customers";
 import { useAuth } from "../../../../shared/auth";
+
+const customerColumns = [
+  { key: "name", header: "Cliente" },
+  { key: "email", header: "Correo" },
+  { key: "phone", header: "Teléfono" },
+  { key: "city", header: "Ciudad" },
+  { key: "address", header: "Dirección" },
+  { key: "totalPurchases", header: "Compras", format: "number" },
+  { key: "totalSpent", header: "Total gastado", format: "money" },
+  { header: "Estado", value: (row) => (row.status === "active" ? "Activo" : "Inactivo") },
+  { key: "joinDate", header: "Registro", format: "date" },
+  { key: "lastPurchase", header: "Última compra", format: "date" }
+];
+
 function Customers() {
   const { can } = useAuth();
 
@@ -57,11 +72,11 @@ function Customers() {
         })]
       }), /* @__PURE__ */jsxs("div", {
         className: "flex gap-3",
-        children: [/* @__PURE__ */jsxs(Button, {
-          children: [/* @__PURE__ */jsx(Users, {
-            className: "h-5 w-5"
-          }), "Exportar"]
-        }), can("customers.create") && /* @__PURE__ */jsxs(Button, {
+        children: [/* @__PURE__ */jsx(ExportButton, {
+          name: "clientes",
+          rows: sortedCustomers,
+          columns: customerColumns
+        }), /* @__PURE__ */jsx(PrintButton, {}), can("customers.create") && /* @__PURE__ */jsxs(Button, {
           onClick: handleNewCustomer,
           children: [/* @__PURE__ */jsx(Plus, {
             className: "h-5 w-5"

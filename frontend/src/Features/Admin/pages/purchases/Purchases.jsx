@@ -51,7 +51,8 @@ function Purchases() {
   return /* @__PURE__ */jsxs("div", {
     className: "space-y-6",
     children: [/* @__PURE__ */jsx(PurchasesHeader, {
-      onNewPurchase: handleNewPurchase
+      onNewPurchase: handleNewPurchase,
+      rows: filtered
     }), /* @__PURE__ */jsx(PurchasesStats, {
       totalOrders: purchases.length,
       totalPurchased,

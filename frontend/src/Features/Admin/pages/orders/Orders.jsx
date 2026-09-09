@@ -51,7 +51,7 @@ function Orders() {
 
   return (
     <div className="space-y-6">
-      <OrdersHeader onNewOrder={handleNewOrder} onlyOwn={onlyOwn} isClient={isClient} />
+      <OrdersHeader onNewOrder={handleNewOrder} onlyOwn={onlyOwn} isClient={isClient} rows={filtered} />
 
       <OrdersStats stats={stats} />
 

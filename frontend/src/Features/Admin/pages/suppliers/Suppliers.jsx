@@ -1,10 +1,26 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { Plus, Package } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
+import { ExportButton, PrintButton } from "../../../../shared/components/ui/ExportButton";
 import { useSuppliers } from "../../hooks/suppliers";
 import { SupplierStats, SupplierFilters, SupplierTable, SupplierFormModal } from "../../components/suppliers";
 import { useAuth } from "../../../../shared/auth";
+
+const supplierColumns = [
+  { key: "name", header: "Proveedor" },
+  { key: "contact", header: "Contacto" },
+  { key: "email", header: "Correo" },
+  { key: "phone", header: "Teléfono" },
+  { key: "city", header: "Ciudad" },
+  { key: "rating", header: "Calificación", format: "number" },
+  { key: "reviews", header: "Reseñas", format: "number" },
+  { key: "totalOrders", header: "Órdenes", format: "number" },
+  { key: "totalSpent", header: "Total comprado", format: "money" },
+  { header: "Estado", value: (row) => (row.status === "active" ? "Activo" : "Inactivo") },
+  { key: "since", header: "Desde", format: "date" }
+];
+
 function Suppliers() {
   const { can } = useAuth();
 
@@ -59,11 +75,11 @@ function Suppliers() {
         })]
       }), /* @__PURE__ */jsxs("div", {
         className: "flex gap-3",
-        children: [/* @__PURE__ */jsxs(Button, {
-          children: [/* @__PURE__ */jsx(Package, {
-            className: "h-5 w-5"
-          }), "Importar"]
-        }), can("suppliers.create") && /* @__PURE__ */jsxs(Button, {
+        children: [/* @__PURE__ */jsx(ExportButton, {
+          name: "proveedores",
+          rows: sortedSuppliers,
+          columns: supplierColumns
+        }), /* @__PURE__ */jsx(PrintButton, {}), can("suppliers.create") && /* @__PURE__ */jsxs(Button, {
           onClick: handleNewSupplier,
           children: [/* @__PURE__ */jsx(Plus, {
             className: "h-5 w-5"

@@ -56,7 +56,8 @@ function ProductsManagement() {
   return /* @__PURE__ */jsxs("div", {
     className: "space-y-6",
     children: [/* @__PURE__ */jsx(ProductsHeader, {
-      onNewProduct: handleNewProduct
+      onNewProduct: handleNewProduct,
+      rows: sortedProducts
     }), /* @__PURE__ */jsx(ProductStats, {
       products,
       lowStockCount

@@ -44,6 +44,7 @@ const ROLE_LIST = [
  * "orders.status"  -> puede mover el pedido entre estados
  * "orders.convert" -> puede convertir el pedido en venta
  * "orders.cancel"  -> puede cancelar su propio pedido mientras siga pendiente
+ * "data.export"    -> puede descargar listados en CSV e imprimir en PDF
  */
 const PERMISSIONS_BY_ROLE = {
   [ROLES.ADMIN]: [
@@ -58,6 +59,7 @@ const PERMISSIONS_BY_ROLE = {
     "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete", "suppliers.toggle",
     "users.view", "users.create", "users.edit", "users.delete",
     "roles.view", "roles.create", "roles.edit", "roles.delete",
+    "data.export",
     "profile.view", "profile.edit"
   ],
 
@@ -75,6 +77,7 @@ const PERMISSIONS_BY_ROLE = {
     "purchases.view",
     "customers.view", "customers.create", "customers.edit",
     "suppliers.view",
+    "data.export",
     "profile.view", "profile.edit"
   ],
 
