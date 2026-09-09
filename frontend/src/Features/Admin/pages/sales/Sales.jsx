@@ -79,6 +79,7 @@ function Sales() {
       itemsPerPage,
       onPageChange: setCurrentPage,
       onViewDetail: handleViewDetail,
+      onCancel: handleCancel,
       onDelete: handleDelete
     }), /* @__PURE__ */jsx(SaleDetailModal, {
       isOpen: !!detailSale,

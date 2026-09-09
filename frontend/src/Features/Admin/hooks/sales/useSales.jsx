@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../../../../shared/auth";
 const mockSales = [
   {
     id: 1, folio: "VTA-001", date: "2024-06-01", customer: "Ana Mart\xEDnez",
@@ -71,7 +72,16 @@ function useSales() {
   const [saleToDelete, setSaleToDelete] = useState(null);
   const [isSaleFormOpen, setIsSaleFormOpen] = useState(false);
   const [saleForm, setSaleForm] = useState(initialSaleForm);
-  const filtered = sales.filter((s) => {
+  const { user, can } = useAuth();
+
+  // El Vendedor tiene el permiso "sales.own": su historial se limita a las
+  // ventas donde el es el vendedor. El Administrador no lo tiene y ve todas.
+  const onlyOwn = can("sales.own");
+  const visibleSales = onlyOwn
+    ? sales.filter((sale) => sale.seller === user?.name)
+    : sales;
+
+  const filtered = visibleSales.filter((s) => {
     const matchSearch = s.folio.toLowerCase().includes(searchQuery.toLowerCase()) || s.customer.toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = statusFilter === "all" || s.status === statusFilter;
     const matchSeller = sellerFilter === "all" || s.seller === sellerFilter;
@@ -84,10 +94,10 @@ function useSales() {
   });
   const totalPages = Math.ceil(sorted.length / itemsPerPage);
   const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const totalRevenue = sales.filter((s) => s.status === "completed").reduce((sum, s) => sum + s.total, 0);
-  const avgTicket = sales.filter((s) => s.status === "completed").length > 0 ? totalRevenue / sales.filter((s) => s.status === "completed").length : 0;
-  const completedCount = sales.filter((s) => s.status === "completed").length;
-  const todayCount = sales.filter((s) => s.date === "2024-06-01").length;
+  const totalRevenue = visibleSales.filter((s) => s.status === "completed").reduce((sum, s) => sum + s.total, 0);
+  const avgTicket = visibleSales.filter((s) => s.status === "completed").length > 0 ? totalRevenue / visibleSales.filter((s) => s.status === "completed").length : 0;
+  const completedCount = visibleSales.filter((s) => s.status === "completed").length;
+  const todayCount = visibleSales.filter((s) => s.date === "2024-06-01").length;
   const handleSearchChange = (value) => {
     setSearchQuery(value);
     setCurrentPage(1);
@@ -196,8 +206,9 @@ function useSales() {
     }
   };
   return {
-    sales,
-    sellers: mockSellers,
+    sales: visibleSales,
+    sellers: onlyOwn ? [user?.name].filter(Boolean) : mockSellers,
+    onlyOwn,
     searchQuery,
     currentPage,
     setCurrentPage,

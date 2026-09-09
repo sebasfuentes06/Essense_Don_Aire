@@ -5,6 +5,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from ".
 import { Badge } from "../../../../shared/components/ui/Badge";
 import { Switch } from "../../../../shared/components/ui/switch";
 import { Pagination } from "../../../../shared/components/ui/Pagination";
+import { useAuth } from "../../../../shared/auth";
 function SupplierTable({
   suppliers,
   totalPages,
@@ -17,6 +18,8 @@ function SupplierTable({
   onDelete,
   onToggleStatus
 }) {
+  const { can } = useAuth();
+
   return /* @__PURE__ */jsxs(Card, {
     children: [/* @__PURE__ */jsxs(Table, {
       children: [/* @__PURE__ */jsx(TableHeader, {
@@ -89,7 +92,7 @@ function SupplierTable({
           }), /* @__PURE__ */jsx(TableCell, {
             children: /* @__PURE__ */jsxs("div", {
               className: "flex items-center gap-2",
-              children: [/* @__PURE__ */jsx(Switch, {
+              children: [can("suppliers.toggle") && /* @__PURE__ */jsx(Switch, {
                 checked: supplier.status === "active",
                 itemName: supplier.name,
                 onCheckedChange: () => onToggleStatus(supplier),
@@ -109,13 +112,13 @@ function SupplierTable({
                 children: /* @__PURE__ */jsx(Eye, {
                   className: "h-4 w-4 text-muted-foreground"
                 })
-              }), /* @__PURE__ */jsx("button", {
+              }), can("suppliers.edit") && /* @__PURE__ */jsx("button", {
                 className: "h-8 w-8 rounded-lg hover:bg-muted transition-colors flex items-center justify-center",
                 onClick: () => onEdit(supplier),
                 children: /* @__PURE__ */jsx(Edit, {
                   className: "h-4 w-4 text-primary"
                 })
-              }), /* @__PURE__ */jsx("button", {
+              }), can("suppliers.delete") && /* @__PURE__ */jsx("button", {
                 className: "h-8 w-8 rounded-lg hover:bg-destructive/10 transition-colors flex items-center justify-center",
                 onClick: () => onDelete(supplier),
                 children: /* @__PURE__ */jsx(Trash2, {

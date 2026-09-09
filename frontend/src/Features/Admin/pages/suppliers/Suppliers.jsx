@@ -4,7 +4,10 @@ import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
 import { useSuppliers } from "../../hooks/suppliers";
 import { SupplierStats, SupplierFilters, SupplierTable, SupplierFormModal } from "../../components/suppliers";
+import { useAuth } from "../../../../shared/auth";
 function Suppliers() {
+  const { can } = useAuth();
+
   const {
     currentPage,
     setCurrentPage,
@@ -60,7 +63,7 @@ function Suppliers() {
           children: [/* @__PURE__ */jsx(Package, {
             className: "h-5 w-5"
           }), "Importar"]
-        }), /* @__PURE__ */jsxs(Button, {
+        }), can("suppliers.create") && /* @__PURE__ */jsxs(Button, {
           onClick: handleNewSupplier,
           children: [/* @__PURE__ */jsx(Plus, {
             className: "h-5 w-5"

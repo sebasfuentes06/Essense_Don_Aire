@@ -6,6 +6,7 @@ import { Badge } from "../../../../shared/components/ui/Badge";
 import { Switch } from "../../../../shared/components/ui/switch";
 import { Pagination } from "../../../../shared/components/ui/Pagination";
 import { cn } from "../../../../shared/utils/cn";
+import { useAuth } from "../../../../shared/auth";
 function ProductTable({
   products,
   currentPage,
@@ -18,6 +19,8 @@ function ProductTable({
   onDelete,
   onToggleStatus
 }) {
+  const { can } = useAuth();
+
   return /* @__PURE__ */jsxs(Card, {
     children: [/* @__PURE__ */jsxs(Table, {
       children: [/* @__PURE__ */jsx(TableHeader, {
@@ -105,13 +108,13 @@ function ProductTable({
                 children: /* @__PURE__ */jsx(Eye, {
                   className: "h-4 w-4 text-muted-foreground"
                 })
-              }), /* @__PURE__ */jsx("button", {
+              }), can("products.edit") && /* @__PURE__ */jsx("button", {
                 className: "h-8 w-8 rounded-lg hover:bg-muted transition-colors flex items-center justify-center",
                 onClick: () => onEdit(product),
                 children: /* @__PURE__ */jsx(Edit, {
                   className: "h-4 w-4 text-primary"
                 })
-              }), /* @__PURE__ */jsx("button", {
+              }), can("products.delete") && /* @__PURE__ */jsx("button", {
                 className: "h-8 w-8 rounded-lg hover:bg-destructive/10 transition-colors flex items-center justify-center",
                 onClick: () => onDelete(product),
                 children: /* @__PURE__ */jsx(Trash2, {

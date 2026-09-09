@@ -4,7 +4,10 @@ import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
 import { useCustomers } from "../../hooks/customers";
 import { CustomerStats, CustomerFilters, CustomerTable, CustomerFormModal, CustomerDetailModal } from "../../components/customers";
+import { useAuth } from "../../../../shared/auth";
 function Customers() {
+  const { can } = useAuth();
+
   const {
     customers,
     sortOptions,
@@ -58,7 +61,7 @@ function Customers() {
           children: [/* @__PURE__ */jsx(Users, {
             className: "h-5 w-5"
           }), "Exportar"]
-        }), /* @__PURE__ */jsxs(Button, {
+        }), can("customers.create") && /* @__PURE__ */jsxs(Button, {
           onClick: handleNewCustomer,
           children: [/* @__PURE__ */jsx(Plus, {
             className: "h-5 w-5"

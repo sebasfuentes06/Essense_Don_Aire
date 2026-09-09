@@ -1,9 +1,10 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, Ban } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../../shared/components/ui/Table";
 import { Badge } from "../../../../shared/components/ui/Badge";
 import { Pagination } from "../../../../shared/components/ui/Pagination";
+import { useAuth } from "../../../../shared/auth";
 const paymentMethodLabels = {
   cash: {
     label: "Efectivo",
@@ -44,8 +45,11 @@ function SalesTable({
   itemsPerPage,
   onPageChange,
   onViewDetail,
+  onCancel,
   onDelete
 }) {
+  const { can } = useAuth();
+
   return /* @__PURE__ */jsxs(Card, {
     children: [/* @__PURE__ */jsxs(Table, {
       children: [/* @__PURE__ */jsx(TableHeader, {
@@ -125,7 +129,15 @@ function SalesTable({
                   children: /* @__PURE__ */jsx(Eye, {
                     className: "h-4 w-4 text-muted-foreground"
                   })
-                }), /* @__PURE__ */jsx("button", {
+                }), can("sales.cancel") && sale.status !== "cancelled" && /* @__PURE__ */jsx("button", {
+                  className: "h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center",
+                  onClick: () => onCancel(sale),
+                  title: "Anular venta",
+                  "aria-label": `Anular venta ${sale.folio}`,
+                  children: /* @__PURE__ */jsx(Ban, {
+                    className: "h-4 w-4 text-muted-foreground"
+                  })
+                }), can("sales.delete") && /* @__PURE__ */jsx("button", {
                   className: "h-8 w-8 rounded-lg hover:bg-destructive/10 flex items-center justify-center",
                   onClick: () => onDelete(sale),
                   title: "Eliminar venta",

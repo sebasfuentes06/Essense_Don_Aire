@@ -40,6 +40,7 @@ const ROLE_LIST = [
  * "modulo.edit"   -> puede editar registros
  * "modulo.delete" -> puede eliminar registros
  * "modulo.own"    -> solo ve/gestiona sus propios registros
+ * "modulo.toggle" -> puede activar/desactivar el registro (switch de estado)
  */
 const PERMISSIONS_BY_ROLE = {
   [ROLES.ADMIN]: [
@@ -47,10 +48,10 @@ const PERMISSIONS_BY_ROLE = {
     "catalog.view", "catalog.edit",
     "products.view", "products.create", "products.edit", "products.delete",
     "categories.view", "categories.create", "categories.edit", "categories.delete",
-    "sales.view", "sales.create", "sales.edit", "sales.delete",
+    "sales.view", "sales.create", "sales.edit", "sales.delete", "sales.cancel",
     "purchases.view", "purchases.create", "purchases.edit", "purchases.delete",
-    "customers.view", "customers.create", "customers.edit", "customers.delete",
-    "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete",
+    "customers.view", "customers.create", "customers.edit", "customers.delete", "customers.toggle",
+    "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete", "suppliers.toggle",
     "users.view", "users.create", "users.edit", "users.delete",
     "roles.view", "roles.create", "roles.edit", "roles.delete",
     "reports.view",
@@ -65,7 +66,7 @@ const PERMISSIONS_BY_ROLE = {
     "catalog.view",
     "products.view", "products.edit",
     "categories.view", "categories.create", "categories.edit",
-    "sales.view", "sales.create", "sales.own",
+    "sales.view", "sales.create", "sales.own", "sales.cancel",
     "purchases.view",
     "customers.view", "customers.create", "customers.edit",
     "suppliers.view",

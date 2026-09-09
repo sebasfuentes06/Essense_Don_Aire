@@ -4,6 +4,7 @@ import { Card } from "../../../../shared/components/ui/Card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../../shared/components/ui/Table";
 import { Badge } from "../../../../shared/components/ui/Badge";
 import { Pagination } from "../../../../shared/components/ui/Pagination";
+import { useAuth } from "../../../../shared/auth";
 const statusConfig = {
   pending: {
     label: "Pendiente",
@@ -36,6 +37,8 @@ function PurchasesTable({
   onViewDetail,
   onDeleteRequest
 }) {
+  const { can } = useAuth();
+
   return /* @__PURE__ */jsxs(Card, {
     children: [/* @__PURE__ */jsxs(Table, {
       children: [/* @__PURE__ */jsx(TableHeader, {
@@ -101,7 +104,7 @@ function PurchasesTable({
                   children: /* @__PURE__ */jsx(Eye, {
                     className: "h-4 w-4 text-muted-foreground"
                   })
-                }), /* @__PURE__ */jsx("button", {
+                }), can("purchases.delete") && /* @__PURE__ */jsx("button", {
                   className: "h-8 w-8 rounded-lg hover:bg-destructive/10 flex items-center justify-center",
                   onClick: () => onDeleteRequest(purchase),
                   title: "Eliminar compra",

@@ -15,7 +15,8 @@ const AuthContext = createContext(undefined);
 const DEMO_USERS = [
   { id: 1, name: "Admin Principal", email: "admin@essence.com", role: ROLES.ADMIN, phone: "+57 300 000 0001" },
   { id: 2, name: "Carlos Vendedor", email: "carlos@essence.com", role: ROLES.SELLER, phone: "+57 300 000 0002" },
-  { id: 3, name: "Laura Cliente", email: "laura@essence.com", role: ROLES.CLIENT, phone: "+57 300 000 0003" }
+  { id: 3, name: "María Vendedora", email: "maria@essence.com", role: ROLES.SELLER, phone: "+57 300 000 0003" },
+  { id: 4, name: "Laura Cliente", email: "laura@essence.com", role: ROLES.CLIENT, phone: "+57 300 000 0004" }
 ];
 
 function readStoredSession() {
