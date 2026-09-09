@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { Plus } from "lucide-react";
-import { Button } from "../../../../shared/components/ui/Button";
+import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
 import { useRoles } from "../../hooks/roles";
 import { RoleStats, RoleFilters, RoleTable, RoleFormModal, RoleDetailModal } from "../../components/roles";
@@ -98,7 +98,8 @@ function Roles() {
     }), /* @__PURE__ */jsx(RoleDetailModal, {
       isOpen: detailModalOpen,
       onClose: closeDetailModal,
-      roleToView
+      roleToView,
+      availablePermissions
     }), /* @__PURE__ */jsx(DeleteDialog, {
       isOpen: deleteDialogOpen,
       onClose: closeDeleteDialog,

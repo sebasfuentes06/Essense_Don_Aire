@@ -1,8 +1,8 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { Search, Filter } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
-import { Button } from "../../../../shared/components/ui/Button";
-import { Input } from "../../../../shared/components/ui/Input";
+import { Button } from "../../../../shared/components/ui/button";
+import { Input } from "../../../../shared/components/ui/input";
 import { Select } from "../../../../shared/components/ui/Select";
 import { FilterPanel } from "../../../../shared/components/ui/FilterPanel";
 import { SortSelect } from "../../../../shared/components/ui/SortSelect";

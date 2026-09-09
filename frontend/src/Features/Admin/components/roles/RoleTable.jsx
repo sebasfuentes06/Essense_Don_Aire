@@ -75,6 +75,7 @@ function RoleTable({
               className: "flex items-center gap-2",
               children: [/* @__PURE__ */jsx(Switch, {
                 checked: role.status === "active",
+                itemName: role.name,
                 onCheckedChange: () => onToggleStatus(role),
                 "aria-label": `${role.status === "active" ? "Desactivar" : "Activar"} ${role.name}`
               }), /* @__PURE__ */jsx("span", {

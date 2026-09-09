@@ -25,6 +25,7 @@ function Purchases() {
     setSortDirection,
     sortOptions,
     detailPurchase,
+    availableProducts,
     isPurchaseFormOpen,
     selectedPurchase,
     purchaseForm,
@@ -96,6 +97,7 @@ function Purchases() {
       purchaseForm,
       onFormChange: setPurchaseForm,
       suppliers,
+      products: availableProducts,
       onSave: handleSavePurchase
     }), /* @__PURE__ */jsx(PurchaseDeleteDialog, {
       isOpen: deleteDialogOpen,

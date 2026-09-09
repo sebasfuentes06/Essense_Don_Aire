@@ -1,7 +1,7 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { Heart, Star } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
-import { Button } from "../../../../shared/components/ui/Button";
+import { Button } from "../../../../shared/components/ui/button";
 function ProductCard({
   product,
   onAddToCart

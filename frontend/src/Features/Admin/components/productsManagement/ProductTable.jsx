@@ -87,6 +87,7 @@ function ProductTable({
               className: "flex items-center gap-2",
               children: [/* @__PURE__ */jsx(Switch, {
                 checked: product.status === "active",
+                itemName: product.name,
                 onCheckedChange: () => onToggleStatus(product),
                 "aria-label": `${product.status === "active" ? "Desactivar" : "Activar"} ${product.name}`
               }), /* @__PURE__ */jsx("span", {

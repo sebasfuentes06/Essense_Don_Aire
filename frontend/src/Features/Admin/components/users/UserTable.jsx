@@ -88,6 +88,7 @@ function UserTable({
               className: "flex items-center gap-2",
               children: [/* @__PURE__ */jsx(Switch, {
                 checked: user.status === "active",
+                itemName: user.name,
                 onCheckedChange: () => onToggleStatus(user),
                 "aria-label": `${user.status === "active" ? "Desactivar" : "Activar"} ${user.name}`
               }), /* @__PURE__ */jsx("span", {

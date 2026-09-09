@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
-import { Button } from "../../../../shared/components/ui/Button";
+import { Button } from "../../../../shared/components/ui/button";
 import { Modal } from "../../../../shared/components/ui/Modal";
-import { Input } from "../../../../shared/components/ui/Input";
+import { Input } from "../../../../shared/components/ui/input";
+import { FormValidationDialog } from "../../../../shared/components/ui/FormValidationDialog";
+import { validateRoleForm } from "../../validations/formValidation";
 function RoleFormModal({
   isOpen,
   onClose,
@@ -14,12 +17,13 @@ function RoleFormModal({
   const nombre = roleForm.nombre ?? roleForm.name ?? "";
   const descripcion = roleForm.descripcion ?? roleForm.description ?? "";
   const permisos = roleForm.permisos ?? roleForm.permissions ?? [];
-  const moduleOrder = ["Dashboard", "Productos", "Ventas", "Clientes", "Usuarios"];
+  const moduleOrder = ["Dashboard", "Catálogo", "Productos", "Categorías", "Compras", "Ventas", "Clientes", "Proveedores", "Usuarios", "Roles"];
+  const [validationOpen, setValidationOpen] = useState(false);
 
+  const errors = validateRoleForm({ nombre, permisos });
   const validate = () => {
-    if (!String(nombre).trim()) return "Debe indicar el nombre del rol.";
-    if (!Array.isArray(permisos) || permisos.length === 0) return "Debe seleccionar al menos un permiso.";
-    return "";
+    const nextErrors = validateRoleForm({ nombre, permisos });
+    return Object.values(nextErrors)[0] || "";
   };
   const groupedPermissions = moduleOrder.map(module => ({
     module,
@@ -49,15 +53,19 @@ function RoleFormModal({
     });
   };
 
-  return /* @__PURE__ */jsx(Modal, {
-    isOpen,
-    onClose,
-    title: isEditing ? "Editar Rol" : "Nuevo Rol",
-    children: /* @__PURE__ */jsxs("div", {
-      className: "space-y-6",
-      children: [/* @__PURE__ */jsx(Input, {
+  return /* @__PURE__ */jsxs("div", {
+    children: [/* @__PURE__ */jsx(Modal, {
+      isOpen,
+      onClose,
+      size: "xl",
+      title: isEditing ? "Editar Rol" : "Nuevo Rol",
+      children: /* @__PURE__ */jsxs("div", {
+        className: "space-y-6",
+        children: [/* @__PURE__ */jsx(Input, {
         label: "Nombre del rol",
         value: nombre,
+        required: true,
+        error: errors.nombre,
         onChange: e => onRoleFormChange({
           ...roleForm,
           nombre: e.target.value,
@@ -80,6 +88,7 @@ function RoleFormModal({
           children: "Permisos"
         }), /* @__PURE__ */jsxs("details", {
           className: "group rounded-xl border border-input bg-input-background",
+          open: true,
           children: [/* @__PURE__ */jsx("summary", {
             className: "flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden",
             children: [/* @__PURE__ */jsx("span", {
@@ -160,7 +169,7 @@ function RoleFormModal({
           onClick: () => {
             const error = validate();
             if (error) {
-              alert(error);
+              setValidationOpen(true);
               return;
             }
             onSave();
@@ -169,6 +178,14 @@ function RoleFormModal({
         })]
       })]
     })
+  }),
+  /* @__PURE__ */jsx(FormValidationDialog, {
+    isOpen: validationOpen,
+    onClose: () => setValidationOpen(false),
+    message: validate()
+  })
+]
   });
 }
+
 export { RoleFormModal };

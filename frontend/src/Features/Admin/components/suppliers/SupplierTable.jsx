@@ -91,6 +91,7 @@ function SupplierTable({
               className: "flex items-center gap-2",
               children: [/* @__PURE__ */jsx(Switch, {
                 checked: supplier.status === "active",
+                itemName: supplier.name,
                 onCheckedChange: () => onToggleStatus(supplier),
                 "aria-label": `${supplier.status === "active" ? "Desactivar" : "Activar"} ${supplier.name}`
               }), /* @__PURE__ */jsx("span", {

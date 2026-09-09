@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { Download, ShoppingCart } from "lucide-react";
-import { Button } from "../../../../shared/components/ui/Button";
+import { Button } from "../../../../shared/components/ui/button";
 function SalesHeader({ onNewSale }) {
   return /* @__PURE__ */jsxs("div", {
     className: "flex flex-col md:flex-row md:items-center md:justify-between gap-4",

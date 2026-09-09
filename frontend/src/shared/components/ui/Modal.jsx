@@ -36,8 +36,8 @@ function Modal({ isOpen, onClose, title, children, size = "md" }) {
         {title && (
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-4 sm:px-6">
             <h2 className="text-lg font-semibold text-card-foreground">{title}</h2>
-            <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted">
-              <X className="h-5 w-5 text-muted-foreground" />
+            <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/80 bg-background hover:bg-muted transition-colors">
+              <X className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
         )}

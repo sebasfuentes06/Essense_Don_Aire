@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { Plus, Users } from "lucide-react";
-import { Button } from "../../../../shared/components/ui/Button";
+import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
 import { useCustomers } from "../../hooks/customers";
 import { CustomerStats, CustomerFilters, CustomerTable, CustomerFormModal, CustomerDetailModal } from "../../components/customers";

@@ -65,6 +65,7 @@ function CategoriesTable({
               className: "flex items-center gap-2",
               children: [/* @__PURE__ */jsx(Switch, {
                 checked: category.status === "active",
+                itemName: category.name,
                 onCheckedChange: () => onToggleStatus(category),
                 "aria-label": `${category.status === "active" ? "Desactivar" : "Activar"} ${category.name}`
               }), /* @__PURE__ */jsx("span", {

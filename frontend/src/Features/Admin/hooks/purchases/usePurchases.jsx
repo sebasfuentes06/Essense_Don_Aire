@@ -37,6 +37,13 @@ const mockSuppliers = [
   { id: 2, name: "Perfumes Internacionales" },
   { id: 3, name: "Aromas del Mundo" }
 ];
+const availableProducts = [
+  { id: 1, name: "Essence Royale", price: 89.99, stock: 45 },
+  { id: 2, name: "Noir Elegance", price: 74.99, stock: 12 },
+  { id: 3, name: "Golden Mist", price: 79.99, stock: 5 },
+  { id: 4, name: "Velvet Rose", price: 69.99, stock: 28 },
+  { id: 5, name: "Ocean Breeze", price: 64.99, stock: 0 }
+];
 const initialPurchaseForm = {
   folio: "",
   id_proveedor: "",
@@ -135,6 +142,10 @@ function usePurchases() {
       alert("Debe seleccionar un estado.");
       return;
     }
+    if (!Array.isArray(purchaseForm.items) || purchaseForm.items.length === 0) {
+      alert("Debe agregar al menos un producto a la compra.");
+      return;
+    }
     if (subtotal < 0) {
       alert("El subtotal no puede ser negativo.");
       return;
@@ -201,6 +212,7 @@ function usePurchases() {
   return {
     purchases,
     suppliers: mockSuppliers,
+    availableProducts,
     searchQuery,
     setSearchQuery,
     statusFilter,

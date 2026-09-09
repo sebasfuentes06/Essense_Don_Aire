@@ -112,17 +112,17 @@ function useSales() {
     setSaleForm(initialSaleForm);
   };
   const handleSaveSale = () => {
-    const cliente = Number(saleForm.id_cliente ?? saleForm.customer ?? 0);
-    const vendedor = Number(saleForm.id_usuario ?? saleForm.seller ?? 0);
+    const customerName = String(saleForm.customer ?? saleForm.id_cliente ?? "").trim();
+    const sellerName = String(saleForm.seller ?? saleForm.id_usuario ?? "").trim();
     const metodoPago = Number(saleForm.id_metodo_pago ?? saleForm.paymentMethod ?? 0);
     const fechaVenta = saleForm.fecha_venta ?? saleForm.date ?? "";
     const total = Number(saleForm.total ?? 0);
 
-    if (!cliente || cliente <= 0) {
+    if (!customerName) {
       alert("Debe indicar un cliente válido.");
       return;
     }
-    if (!vendedor || vendedor <= 0) {
+    if (!sellerName) {
       alert("Debe seleccionar un vendedor válido.");
       return;
     }
@@ -142,21 +142,21 @@ function useSales() {
     const nextId = Math.max(0, ...sales.map((sale) => sale.id)) + 1;
     const nextFolio = `VTA-${String(nextId).padStart(3, "0")}`;
     const payload = {
-      id_cliente: cliente,
-      id_usuario: vendedor,
+      id_cliente: customerName,
+      id_usuario: sellerName,
       fecha_venta: fechaVenta,
       id_metodo_pago: metodoPago,
       total,
       date: saleForm.date ?? saleForm.fecha_venta,
-      customer: saleForm.customer ?? saleForm.id_cliente,
-      seller: saleForm.seller ?? saleForm.id_usuario,
+      customer: customerName,
+      seller: sellerName,
       paymentMethod: saleForm.paymentMethod ?? saleForm.id_metodo_pago ?? "cash",
-      status: "completed"
+      status: "completed",
+      items: []
     };
     setSales([...sales, {
       id: nextId,
       folio: nextFolio,
-      items: [],
       subtotal: total,
       discount: 0,
       ...payload

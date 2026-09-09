@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { Plus, Package } from "lucide-react";
-import { Button } from "../../../../shared/components/ui/Button";
+import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
 import { useSuppliers } from "../../hooks/suppliers";
 import { SupplierStats, SupplierFilters, SupplierTable, SupplierFormModal } from "../../components/suppliers";

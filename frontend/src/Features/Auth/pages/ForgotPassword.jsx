@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
-import { Button } from "../../../shared/components/ui/Button";
+import { Button } from "../../../shared/components/ui/button";
 import { Card, CardContent } from "../../../shared/components/ui/Card";
 import { AuthLayout, FormField } from "../components/auth";
 import { useForgotPassword } from "../hooks/useForgotPassword";

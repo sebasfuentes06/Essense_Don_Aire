@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { jsx, jsxs } from "react/jsx-runtime";
-import { Button } from "../../../../shared/components/ui/Button";
+import { Button } from "../../../../shared/components/ui/button";
 import { Modal } from "../../../../shared/components/ui/Modal";
-import { Input } from "../../../../shared/components/ui/Input";
+import { Input } from "../../../../shared/components/ui/input";
 import { Select } from "../../../../shared/components/ui/Select";
+import { FormValidationDialog } from "../../../../shared/components/ui/FormValidationDialog";
+import { validateUserForm } from "../../validations/formValidation";
 
 function UserFormModal({
 	isOpen,
@@ -23,27 +25,28 @@ function UserFormModal({
 	const rolValue = String(userForm.id_rol ?? userForm.role ?? "");
 	const estadoValue = userForm.estado ?? userForm.status ?? true;
 	const estadoSelect = estadoValue === true || estadoValue === "true" || estadoValue === "active" ? "active" : "inactive";
+	const [validationOpen, setValidationOpen] = useState(false);
 
+	const errors = validateUserForm({ nombre, correo, contrasena, telefono, id_rol: rolValue, isEditing });
 	const validate = () => {
-		if (!String(nombre).trim()) return "Debe indicar el nombre completo.";
-		if (!String(correo).trim()) return "Debe indicar un correo electrónico.";
-		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(correo).trim())) return "El correo electrónico no es válido.";
-		if (!isEditing && !String(contrasena).trim()) return "La contraseña es obligatoria.";
-		if (!String(rolValue).trim() || Number(rolValue) <= 0) return "Debe seleccionar un rol.";
-		if (String(telefono).trim() && !/^[+()\d\s-]{7,}$/.test(String(telefono).trim())) return "El teléfono no es válido.";
-		return "";
+		const nextErrors = validateUserForm({ nombre, correo, contrasena, telefono, id_rol: rolValue, isEditing });
+		return Object.values(nextErrors)[0] || "";
 	};
 
-	return /* @__PURE__ */jsx(Modal, {
-		isOpen,
-		onClose,
-		title: isEditing ? "Editar Usuario" : "Nuevo Usuario",
-		children: /* @__PURE__ */jsxs("div", {
-			className: "space-y-6",
+	return /* @__PURE__ */jsxs("div", {
+		children: [/* @__PURE__ */jsx(Modal, {
+			isOpen,
+			onClose,
+			size: "xl",
+			title: isEditing ? "Editar Usuario" : "Nuevo Usuario",
+			children: /* @__PURE__ */jsxs("div", {
+				className: "space-y-6",
 			children: [
 				/* @__PURE__ */jsx(Input, {
 					label: "Nombre completo",
 					value: nombre,
+					required: true,
+					error: errors.nombre,
 					onChange: e => onUserFormChange({
 						...userForm,
 						nombre: e.target.value,
@@ -54,6 +57,8 @@ function UserFormModal({
 				/* @__PURE__ */jsx(Input, {
 					label: "Correo electrónico",
 					value: correo,
+					required: true,
+					error: errors.correo,
 					onChange: e => onUserFormChange({
 						...userForm,
 						correo: e.target.value,
@@ -68,6 +73,7 @@ function UserFormModal({
 							label: isEditing ? "Nueva contraseña (opcional)" : "Contraseña",
 							type: showPassword ? "text" : "password",
 							required: !isEditing,
+							error: errors.contrasena,
 							value: contrasena,
 							onChange: e => onUserFormChange({
 								...userForm,
@@ -89,6 +95,7 @@ function UserFormModal({
 				/* @__PURE__ */jsx(Input, {
 					label: "Teléfono",
 					value: telefono,
+					error: errors.telefono,
 					onChange: e => onUserFormChange({
 						...userForm,
 						telefono: e.target.value,
@@ -99,6 +106,8 @@ function UserFormModal({
 				/* @__PURE__ */jsx(Select, {
 					label: "Rol",
 					value: rolValue,
+					required: true,
+					error: errors.id_rol,
 					onChange: e => onUserFormChange({
 						...userForm,
 						id_rol: Number(e.target.value),
@@ -112,6 +121,7 @@ function UserFormModal({
 				/* @__PURE__ */jsx(Select, {
 					label: "Estado",
 					value: estadoSelect,
+					required: true,
 					onChange: e => {
 						const nextEstado = e.target.value === "active";
 						onUserFormChange({
@@ -136,7 +146,7 @@ function UserFormModal({
 							onClick: () => {
 								const error = validate();
 								if (error) {
-									alert(error);
+									setValidationOpen(true);
 									return;
 								}
 								onSave();
@@ -147,6 +157,11 @@ function UserFormModal({
 				})
 			]
 		})
+	}), /* @__PURE__ */jsx(FormValidationDialog, {
+		isOpen: validationOpen,
+		onClose: () => setValidationOpen(false),
+		message: validate()
+	})]
 	});
 }
 

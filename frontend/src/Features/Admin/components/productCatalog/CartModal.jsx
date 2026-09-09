@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { Button } from "../../../../shared/components/ui/Button";
+import { Button } from "../../../../shared/components/ui/button";
 import { Modal } from "../../../../shared/components/ui/Modal";
 
 function CartModal({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem }) {

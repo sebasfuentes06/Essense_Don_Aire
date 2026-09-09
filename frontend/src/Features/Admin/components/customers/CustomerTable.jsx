@@ -96,6 +96,7 @@ function CustomerTable({
               className: "flex items-center gap-2",
               children: [/* @__PURE__ */jsx(Switch, {
                 checked: customer.status === "active",
+                itemName: customer.name,
                 onCheckedChange: () => onToggleStatus(customer),
                 "aria-label": `${customer.status === "active" ? "Desactivar" : "Activar"} ${customer.name}`
               }), /* @__PURE__ */jsx("span", {

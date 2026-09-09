@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { Button } from "./Button";
+import { Button } from "./button";
 import { cn } from "../../utils/cn";
 
 function FilterPanel({ isOpen, onClose, onReset, children }) {
