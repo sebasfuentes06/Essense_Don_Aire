@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { useAuth, ROLES } from "../../../shared/auth";
+import { useAuth } from "../../../shared/auth";
 
 /**
- * Formulario de acceso.
- *
- * Mientras no hay backend, el rol se elige en un selector del formulario
- * ("Entrar como"). Cuando se conecte la API el rol vendra en la respuesta del
- * login y bastara con quitar el selector: el resto del flujo no cambia.
+ * Formulario de acceso, ya contra la API.
+ * El perfil lo determina la base de datos según el usuario: por eso
+ * desapareció el selector "Entrar como" que usábamos mientras no había backend.
  */
 function useLoginForm() {
   const { login } = useAuth();
@@ -16,37 +14,27 @@ function useLoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState(ROLES.ADMIN);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
+    setIsLoading(true);
 
-    const result = login({ email, password, role });
+    const result = await login({ email, password });
 
+    setIsLoading(false);
     if (!result.ok) {
       setError(result.error);
       return;
     }
 
-    const target = location.state?.from?.pathname ?? "/panel";
-    navigate(target, { replace: true });
+    navigate(location.state?.from?.pathname ?? "/panel", { replace: true });
   };
 
-  return {
-    email,
-    setEmail,
-    password,
-    setPassword,
-    role,
-    setRole,
-    rememberMe,
-    setRememberMe,
-    error,
-    handleSubmit
-  };
+  return { email, setEmail, password, setPassword, rememberMe, setRememberMe, error, isLoading, handleSubmit };
 }
 
 export { useLoginForm };

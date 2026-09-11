@@ -6,6 +6,25 @@ import { HttpError } from "../../middleware/errors.js";
 
 const SALT_ROUNDS = 10;
 
+/**
+ * Hash real de una cadena aleatoria. Se usa solo para gastar el mismo tiempo
+ * cuando el correo no existe; nunca coincide con ninguna contraseña.
+ */
+const HASH_DESCARTABLE = "$2a$10$mNnHkPETud9qiA4c/xnAP.IRSjTQt/XGCZemgKwyPQYnyxApATJKG";
+
+/**
+ * bcrypt.compare lanza excepción si el hash guardado está corrupto o vacío
+ * (por ejemplo, un usuario insertado a mano en la base). Eso debe tratarse
+ * como "contraseña incorrecta", no como una caída del servidor.
+ */
+async function comparar(contrasena, hash) {
+  try {
+    return await bcrypt.compare(contrasena, hash ?? "");
+  } catch {
+    return false;
+  }
+}
+
 /** Trae al usuario con su rol y la lista de permisos de ese rol. */
 async function findUserByEmail(correo) {
   const { rows } = await query(
@@ -48,12 +67,16 @@ async function login({ correo, contrasena }) {
   // Mismo mensaje para "no existe" y "clave incorrecta": si fueran distintos,
   // cualquiera podría averiguar qué correos están registrados.
   const genérico = new HttpError(401, "Correo o contraseña incorrectos.");
+
   if (!user) {
-    await bcrypt.compare(contrasena, "$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalid");
+    // Se compara igual contra un hash real y descartable, para que responder
+    // "no existe" tarde lo mismo que "clave incorrecta". Si no, el tiempo de
+    // respuesta delataría qué correos están registrados.
+    await comparar(contrasena, HASH_DESCARTABLE);
     throw genérico;
   }
 
-  const ok = await bcrypt.compare(contrasena, user.contrasena);
+  const ok = await comparar(contrasena, user.contrasena);
   if (!ok) throw genérico;
   if (!user.estado) throw new HttpError(403, "La cuenta está desactivada. Contacta al administrador.");
 

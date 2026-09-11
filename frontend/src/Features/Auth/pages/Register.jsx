@@ -1,4 +1,4 @@
-import { Mail, User, Phone, ArrowLeft, ShoppingBag, Briefcase } from "lucide-react";
+import { Mail, User, Phone, ArrowLeft, ShoppingBag, Briefcase, AlertCircle } from "lucide-react";
 import { Button } from "../../../shared/components/ui/button";
 import { Card, CardContent } from "../../../shared/components/ui/Card";
 import { AuthLayout, FormField, PasswordField } from "../components/auth";
@@ -22,7 +22,7 @@ const SELF_SERVICE_ROLES = [
 ];
 
 function Register({ onBack }) {
-  const { formData, errors, isLoading, handleChange, handleSubmit } = useRegisterForm();
+  const { formData, errors, serverError, isLoading, handleChange, handleSubmit } = useRegisterForm();
 
   return (
     <AuthLayout tagline="Crea tu cuenta y descubre nuestras fragancias">
@@ -142,6 +142,13 @@ function Register({ onBack }) {
               </label>
               {errors.acceptTerms && <p className="mt-1.5 text-sm text-destructive">{errors.acceptTerms}</p>}
             </div>
+
+            {serverError && (
+              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2.5">
+                <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-destructive">{serverError}</p>
+              </div>
+            )}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Creando cuenta..." : "Crear cuenta"}

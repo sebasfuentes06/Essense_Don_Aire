@@ -1,117 +1,105 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ROLES, getPermissions, roleCan } from "./roles";
-
-const STORAGE_KEY = "eda_session";
-
-const AuthContext = createContext(undefined);
+import { api, ApiError, getToken, setToken, setUnauthorizedHandler } from "../api";
+import { ROLES } from "./roles";
 
 /**
- * Usuarios de demostracion.
+ * Sesión de la aplicación, contra la API real.
  *
- * Mientras no exista backend, el login valida contra esta lista. Cuando se
- * conecte la API, este arreglo se reemplaza por la llamada a
- * POST /auth/login y el resto del contexto NO cambia.
+ * Los permisos ya NO salen de roles.js: vienen del backend, que los lee de
+ * `rol_permiso`. Así, si un administrador cambia los permisos de un rol desde
+ * el módulo Roles, el cambio se refleja sin tocar código.
  */
-const DEMO_USERS = [
-  { id: 1, name: "Admin Principal", email: "admin@essence.com", role: ROLES.ADMIN, phone: "+57 300 000 0001" },
-  { id: 2, name: "Carlos Vendedor", email: "carlos@essence.com", role: ROLES.SELLER, phone: "+57 300 000 0002" },
-  { id: 3, name: "María Vendedora", email: "maria@essence.com", role: ROLES.SELLER, phone: "+57 300 000 0003" },
-  { id: 4, name: "Laura Cliente", email: "laura@essence.com", role: ROLES.CLIENT, phone: "+57 300 000 0004" }
-];
 
-function readStoredSession() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.role || !Object.values(ROLES).includes(parsed.role)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function persistSession(user) {
-  try {
-    if (user) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    } else {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    /* localStorage puede estar bloqueado: la sesion vive solo en memoria */
-  }
-}
+const AuthContext = createContext(undefined);
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    setUser(readStoredSession());
-    setIsLoading(false);
-  }, []);
-
-  /**
-   * Login simulado. `role` viene del selector del formulario de acceso.
-   * Si el correo coincide con un usuario demo se usa su nombre real;
-   * si no, se arma un usuario con el correo escrito.
-   */
-  const login = useCallback(({ email, password, role }) => {
-    const cleanEmail = String(email ?? "").trim().toLowerCase();
-
-    if (!cleanEmail) {
-      return { ok: false, error: "Debes indicar tu correo electronico." };
-    }
-    if (!String(password ?? "").trim()) {
-      return { ok: false, error: "Debes indicar tu contrasena." };
-    }
-    if (!Object.values(ROLES).includes(role)) {
-      return { ok: false, error: "Debes seleccionar un perfil valido." };
-    }
-
-    const demo = DEMO_USERS.find((candidate) => candidate.email === cleanEmail);
-    const session = demo && demo.role === role
-      ? { ...demo }
-      : {
-          id: demo?.id ?? Date.now(),
-          name: demo?.name ?? cleanEmail.split("@")[0],
-          email: cleanEmail,
-          phone: demo?.phone ?? "",
-          role
-        };
-
-    setUser(session);
-    persistSession(session);
-    return { ok: true, user: session };
-  }, []);
-
-  /** Registro simulado: el rol elegido en el formulario define que vistas vera. */
-  const register = useCallback(({ fullName, email, phone, role }) => {
-    const session = {
-      id: Date.now(),
-      name: String(fullName ?? "").trim() || String(email ?? "").split("@")[0],
-      email: String(email ?? "").trim().toLowerCase(),
-      phone: String(phone ?? "").trim(),
-      role: Object.values(ROLES).includes(role) ? role : ROLES.CLIENT
-    };
-    setUser(session);
-    persistSession(session);
-    return { ok: true, user: session };
-  }, []);
-
-  const logout = useCallback(() => {
+  const clearSession = useCallback(() => {
+    setToken(null);
     setUser(null);
-    persistSession(null);
   }, []);
 
+  // Si cualquier petición recibe 401 (token vencido o revocado), se cierra
+  // la sesión en vez de dejar la interfaz a medias.
+  useEffect(() => {
+    setUnauthorizedHandler(() => clearSession());
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession]);
+
+  /** Al cargar la app: si hay token guardado, se rehidrata la sesión. */
+  useEffect(() => {
+    let cancelado = false;
+
+    async function rehidratar() {
+      if (!getToken()) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const { user: sesion } = await api.get("/auth/me");
+        if (!cancelado) setUser(sesion);
+      } catch (error) {
+        if (cancelado) return;
+        // Solo se borra el token cuando el servidor dice que ya no sirve (401).
+        // Si la API está caída o no hay red (status 0), el token sigue siendo
+        // válido: se conserva para que al volver el servidor la sesión se
+        // recupere sola, sin obligar a entrar de nuevo.
+        if (error?.status === 401) clearSession();
+        else setUser(null);
+      } finally {
+        if (!cancelado) setIsLoading(false);
+      }
+    }
+
+    rehidratar();
+    return () => { cancelado = true; };
+  }, [clearSession]);
+
+  const login = useCallback(async ({ email, password }) => {
+    try {
+      const { token, user: sesion } = await api.post(
+        "/auth/login",
+        { correo: email, contrasena: password },
+        { auth: false }
+      );
+      setToken(token);
+      setUser(sesion);
+      return { ok: true, user: sesion };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof ApiError ? error.message : "No se pudo iniciar sesión.",
+        details: error?.details
+      };
+    }
+  }, []);
+
+  const register = useCallback(async ({ fullName, email, phone, password, role }) => {
+    try {
+      const { token, user: sesion } = await api.post(
+        "/auth/register",
+        { nombre: fullName, correo: email, telefono: phone, contrasena: password, rol: role },
+        { auth: false }
+      );
+      setToken(token);
+      setUser(sesion);
+      return { ok: true, user: sesion };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof ApiError ? error.message : "No se pudo crear la cuenta.",
+        details: error?.details
+      };
+    }
+  }, []);
+
+  const logout = useCallback(() => clearSession(), [clearSession]);
+
+  /** Actualiza los datos visibles de la sesión (el perfil aún no se guarda en la API). */
   const updateProfile = useCallback((changes) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...changes };
-      persistSession(next);
-      return next;
-    });
+    setUser((prev) => (prev ? { ...prev, ...changes } : prev));
   }, []);
 
   const value = useMemo(() => ({
@@ -119,8 +107,9 @@ function AuthProvider({ children }) {
     role: user?.role ?? null,
     isAuthenticated: Boolean(user),
     isLoading,
-    permissions: getPermissions(user?.role),
-    can: (permission) => Boolean(user) && roleCan(user.role, permission),
+    permissions: user?.permissions ?? [],
+    /** Único punto donde se decide si algo se muestra o no. */
+    can: (permission) => Boolean(user?.permissions?.includes(permission)),
     login,
     register,
     logout,
@@ -138,4 +127,4 @@ function useAuth() {
   return context;
 }
 
-export { AuthProvider, useAuth, DEMO_USERS, STORAGE_KEY };
+export { AuthProvider, useAuth, ROLES };

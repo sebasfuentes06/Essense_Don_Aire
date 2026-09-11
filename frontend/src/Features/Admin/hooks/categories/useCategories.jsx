@@ -1,176 +1,201 @@
-import { useState } from "react";
-const mockCategories = [
-  {
-    id: 1, name: "Exclusivos", description: "Fragancias premium de edici\xF3n limitada", productCount: 8, status: "active", createdAt: "2024-01-15"
-  },
-  {
-    id: 2, name: "Hombre", description: "Perfumes masculinos", productCount: 15, status: "active", createdAt: "2024-01-10"
-  },
-  {
-    id: 3, name: "Mujer", description: "Fragancias femeninas", productCount: 22, status: "active", createdAt: "2024-01-10"
-  },
-  {
-    id: 4, name: "Unisex", description: "Perfumes para todos", productCount: 12, status: "active", createdAt: "2024-01-20"
-  },
-  {
-    id: 5, name: "Ni\xF1os", description: "Fragancias suaves para ni\xF1os", productCount: 5, status: "inactive", createdAt: "2024-02-01"
-  }
-];
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, ApiError } from "../../../../shared/api";
+
 const sortOptions = [
   { value: "name", label: "Nombre" },
-  { value: "productCount", label: "Productos" },
-  { value: "createdAt", label: "Fecha" }
+  { value: "productCount", label: "N° de productos" },
+  { value: "createdAt", label: "Fecha de creación" }
 ];
+
+const emptyForm = { nombre: "", descripcion: "", estado: true };
+
+/**
+ * Categorías, ya contra la API.
+ *
+ * El filtrado, el orden y la paginación los hace PostgreSQL, no el navegador:
+ * se le mandan como parámetros a /api/categorias. Con cinco categorías da
+ * igual, pero con cinco mil es la diferencia entre una tabla instantánea y
+ * una que descarga todo para mostrar diez filas.
+ */
 function useCategories() {
-  const [categories, setCategories] = useState(mockCategories);
+  const [categories, setCategories] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [categoryForm, setCategoryForm] = useState(emptyForm);
+  const [formErrors, setFormErrors] = useState({});
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState(null);
-  const [categoryForm, setCategoryForm] = useState({ nombre: "", descripcion: "", estado: true, name: "", description: "", status: "active" });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
-  const filteredCategories = categories.filter((cat) => {
-    const matchesSearch = cat.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || cat.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-  const sortedCategories = [...filteredCategories].sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
-    if (typeof aValue === "string") {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
+  const [actionError, setActionError] = useState("");
+
+  /** Trae la página actual con los filtros aplicados. */
+  const fetchCategories = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      const { data, meta } = await api.get("/categorias", {
+        search: searchQuery,
+        status: statusFilter,
+        sortBy,
+        sortDir: sortDirection,
+        page: currentPage,
+        limit: itemsPerPage
+      });
+      setCategories(data);
+      setTotalItems(meta.total);
+      setTotalPages(meta.totalPages);
+    } catch (error) {
+      setCategories([]);
+      setTotalItems(0);
+      setLoadError(error instanceof ApiError ? error.message : "No se pudieron cargar las categorías.");
+    } finally {
+      setIsLoading(false);
     }
-    if (sortDirection === "asc") {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
+  }, [searchQuery, statusFilter, sortBy, sortDirection, currentPage, itemsPerPage]);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const resetPage = () => setCurrentPage(1);
+  const handleSearchChange = (value) => { setSearchQuery(value); resetPage(); };
+  const handleStatusFilterChange = (value) => { setStatusFilter(value); resetPage(); };
+
+  /** Envuelve una acción de escritura: refresca la lista y traduce el error. */
+  const run = async (accion) => {
+    setActionError("");
+    try {
+      await accion();
+      await fetchCategories();
+      return true;
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "No se pudo completar la operación.");
+      if (error?.details) setFormErrors(error.details);
+      return false;
     }
-  });
-  const totalPages = Math.ceil(sortedCategories.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedCategories = sortedCategories.slice(startIndex, startIndex + itemsPerPage);
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
   };
-  const handleStatusFilterChange = (value) => {
-    setStatusFilter(value);
-    setCurrentPage(1);
-  };
-  const handleToggleStatus = (category) => {
-    setCategories(categories.map(
-      (item) => item.id === category.id ? { ...item, status: item.status === "active" ? "inactive" : "active" } : item
-    ));
-  };
+
+  const handleToggleStatus = (category) =>
+    run(() => api.patch(`/categorias/${category.id}/estado`, { estado: category.status !== "active" }));
+
   const handleDelete = (category) => {
     setCategoryToDelete(category);
     setDeleteDialogOpen(true);
   };
-  const confirmDelete = () => {
-    if (categoryToDelete) {
-      setCategories(categories.filter((c) => c.id !== categoryToDelete.id));
+
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return;
+    const ok = await run(() => api.delete(`/categorias/${categoryToDelete.id}`));
+    if (ok) {
       setDeleteDialogOpen(false);
       setCategoryToDelete(null);
     }
   };
+
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
     setCategoryToDelete(null);
+    setActionError("");
   };
+
   const handleEdit = (category) => {
     setSelectedCategory(category);
     setCategoryForm({
-      nombre: category.nombre ?? category.name ?? "",
-      descripcion: category.descripcion ?? category.description ?? "",
-      estado: category.estado ?? category.status ?? true,
-      name: category.name ?? category.nombre ?? "",
-      description: category.description ?? category.descripcion ?? "",
-      status: category.status ?? category.estado ?? "active"
+      nombre: category.name ?? "",
+      descripcion: category.description ?? "",
+      estado: category.status === "active"
     });
+    setFormErrors({});
     setIsModalOpen(true);
   };
+
   const openNewCategoryModal = () => {
     setSelectedCategory(null);
-    setCategoryForm({ nombre: "", descripcion: "", estado: true, name: "", description: "", status: "active" });
+    setCategoryForm(emptyForm);
+    setFormErrors({});
     setIsModalOpen(true);
   };
+
   const handleShowCategoryDetail = (category) => {
     setSelectedCategoryForDetail(category);
     setDetailModalOpen(true);
   };
+
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedCategory(null);
+    setCategoryForm(emptyForm);
+    setFormErrors({});
+    setActionError("");
   };
+
   const handleCloseDetailModal = () => {
     setDetailModalOpen(false);
     setSelectedCategoryForDetail(null);
   };
-  const handleSaveCategory = () => {
-    const nombre = categoryForm.nombre ?? categoryForm.name ?? "";
-    const descripcion = categoryForm.descripcion ?? categoryForm.description ?? "";
 
-    if (!String(nombre).trim()) {
-      alert("Debe indicar el nombre de la categoría.");
-      return;
-    }
-
+  const handleSaveCategory = async () => {
+    setFormErrors({});
     const payload = {
-      nombre,
-      descripcion,
-      estado: categoryForm.estado ?? categoryForm.status ?? true,
-      name: categoryForm.name ?? categoryForm.nombre ?? "",
-      description: categoryForm.description ?? categoryForm.descripcion ?? "",
-      status: categoryForm.status ?? categoryForm.estado ?? "active"
+      nombre: categoryForm.nombre,
+      descripcion: categoryForm.descripcion,
+      estado: categoryForm.estado
     };
 
-    if (selectedCategory) {
-      setCategories(categories.map(
-        (cat) => cat.id === selectedCategory.id ? { ...cat, ...payload } : cat
-      ));
-    } else {
-      const nextId = Math.max(0, ...categories.map((cat) => cat.id)) + 1;
-      setCategories([...categories, { id: nextId, productCount: 0, createdAt: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10), ...payload }]);
-    }
-    setIsModalOpen(false);
-    setSelectedCategory(null);
+    const ok = await run(() =>
+      selectedCategory
+        ? api.put(`/categorias/${selectedCategory.id}`, payload)
+        : api.post("/categorias", payload)
+    );
+
+    if (ok) closeModal();
   };
+
+  // Nombres conservados para no tocar la página ni los componentes que ya los usan.
+  const paginatedCategories = categories;
+  const sortedCategories = categories;
+  const filteredCategories = categories;
+
+  const stats = useMemo(() => ({ total: totalItems }), [totalItems]);
+
   return {
     categories,
-    searchQuery,
-    setSearchQuery,
-    currentPage,
-    setCurrentPage,
-    itemsPerPage,
-    setItemsPerPage,
-    sortBy,
-    setSortBy,
-    sortDirection,
-    setSortDirection,
-    statusFilter,
-    setStatusFilter,
-    isModalOpen,
-    setIsModalOpen,
+    isLoading,
+    loadError,
+    actionError,
+    formErrors,
+    totalItems,
+    stats,
+    searchQuery, setSearchQuery,
+    currentPage, setCurrentPage,
+    itemsPerPage, setItemsPerPage,
+    sortBy, setSortBy,
+    sortDirection, setSortDirection,
+    statusFilter, setStatusFilter,
+    isModalOpen, setIsModalOpen,
     selectedCategory,
     detailModalOpen,
     selectedCategoryForDetail,
-    categoryForm,
-    setCategoryForm,
+    categoryForm, setCategoryForm,
     deleteDialogOpen,
     categoryToDelete,
     sortOptions,
     filteredCategories,
     sortedCategories,
-    totalPages,
     paginatedCategories,
+    totalPages,
+    refresh: fetchCategories,
     handleSearchChange,
     handleStatusFilterChange,
     handleToggleStatus,
@@ -185,6 +210,5 @@ function useCategories() {
     handleSaveCategory
   };
 }
-export {
-  useCategories
-};
+
+export { useCategories };

@@ -2,7 +2,6 @@ import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { BrandPanel } from "../components/auth";
 import { useLoginForm } from "../hooks/useLoginForm";
 import { usePasswordVisibility } from "../hooks/usePasswordVisibility";
-import { ROLE_LIST } from "../../../shared/auth";
 
 const inputClass =
   "w-full h-11 pl-10 pr-4 rounded-lg bg-white dark:bg-[#1e1e1e] border border-[#e0ddd8] dark:border-[#333] text-[#1a1a1a] dark:text-white placeholder:text-[#bbb] focus:outline-none focus:ring-2 focus:ring-[#C9A227] focus:border-transparent transition-all";
@@ -13,11 +12,10 @@ function Login({ onRegister, onForgotPassword }) {
     setEmail,
     password,
     setPassword,
-    role,
-    setRole,
     rememberMe,
     setRememberMe,
     error,
+    isLoading,
     handleSubmit
   } = useLoginForm();
 
@@ -96,28 +94,6 @@ function Login({ onRegister, onForgotPassword }) {
               </div>
             </div>
 
-            {/* Selector temporal: mientras no hay backend, define el perfil de la sesión. */}
-            <div>
-              <label htmlFor="login-role" className="block text-sm font-medium text-[#1a1a1a] dark:text-gray-200 mb-2">
-                Entrar como
-              </label>
-              <select
-                id="login-role"
-                className="w-full h-11 px-3 rounded-lg bg-white dark:bg-[#1e1e1e] border border-[#e0ddd8] dark:border-[#333] text-[#1a1a1a] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A227] focus:border-transparent transition-all"
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-              >
-                {ROLE_LIST.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-xs text-[#999]">
-                {ROLE_LIST.find((option) => option.value === role)?.description}
-              </p>
-            </div>
-
             {error && (
               <div className="flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2.5">
                 <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
@@ -146,11 +122,20 @@ function Login({ onRegister, onForgotPassword }) {
 
             <button
               type="submit"
-              className="w-full h-11 bg-[#C9A227] hover:bg-[#b8911f] text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+              disabled={isLoading}
+              className="w-full h-11 bg-[#C9A227] hover:bg-[#b8911f] disabled:opacity-60 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
             >
-              Iniciar sesión
-              <span>→</span>
+              {isLoading ? "Verificando..." : "Iniciar sesión"}
+              {!isLoading && <span>→</span>}
             </button>
+
+            {import.meta.env.DEV && (
+              <p className="text-center text-xs text-[#999]">
+                Cuentas de prueba: admin@ · carlos@ · maria@ · laura@essence.com
+                <br />
+                contraseña <span className="font-mono">Essence2026*</span>
+              </p>
+            )}
 
             <div className="text-center text-sm text-[#999]">¿No tienes cuenta?</div>
 

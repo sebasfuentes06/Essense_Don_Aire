@@ -5,6 +5,12 @@ import { ProductsHeader, ProductStats, ProductFilters, ProductTable, ProductForm
 function ProductsManagement() {
   const {
     products,
+    stats,
+    loadError,
+    actionError,
+    totalItems,
+    categoryOptions,
+    supplierOptions,
     searchQuery,
     selectedCategory,
     showFilters,
@@ -53,14 +59,22 @@ function ProductsManagement() {
     closeModal,
     handleSaveProduct
   } = useProductsManagement();
+  const aviso = (loadError || actionError)
+    ? /* @__PURE__ */jsx("div", {
+        className: "rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive",
+        children: loadError || actionError
+      })
+    : null;
+
   return /* @__PURE__ */jsxs("div", {
     className: "space-y-6",
-    children: [/* @__PURE__ */jsx(ProductsHeader, {
+    children: [aviso, /* @__PURE__ */jsx(ProductsHeader, {
       onNewProduct: handleNewProduct,
       rows: sortedProducts
     }), /* @__PURE__ */jsx(ProductStats, {
       products,
-      lowStockCount
+      lowStockCount,
+      stats
     }), /* @__PURE__ */jsx(ProductFilters, {
       searchQuery,
       onSearchChange: handleSearchChange,
@@ -92,7 +106,7 @@ function ProductsManagement() {
       products: paginatedProducts,
       currentPage,
       totalPages,
-      totalItems: sortedProducts.length,
+      totalItems,
       itemsPerPage,
       onPageChange: setCurrentPage,
       onView: handleView,
@@ -105,9 +119,10 @@ function ProductsManagement() {
       isEditing: !!selectedProduct,
       productForm,
       onProductFormChange: setProductForm,
-      categories,
-      suppliers,
-      onSave: handleSaveProduct
+      categories: categoryOptions,
+      suppliers: supplierOptions,
+      onSave: handleSaveProduct,
+      error: actionError
     }), /* @__PURE__ */jsx(DeleteDialog, {
       isOpen: deleteDialogOpen,
       onClose: closeDeleteDialog,

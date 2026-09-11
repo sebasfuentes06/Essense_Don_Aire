@@ -13,14 +13,15 @@ import {
   LayoutGrid,
   Home
 } from "lucide-react";
-import { ROLES, roleCan } from "../../../../shared/auth/roles";
+import { ROLES } from "../../../../shared/auth/roles";
 
 /**
- * Menu completo del panel.
+ * Menú completo del panel.
  *
- * Cada item declara el permiso que lo habilita. `getMenuGroups(role)` filtra
- * el menu segun los permisos del rol, asi que el Sidebar no sabe nada de roles:
- * solo pinta lo que le llega. Agregar un modulo nuevo = agregar un item aqui.
+ * Cada item declara el permiso que lo habilita. `getMenuGroups(role, can)`
+ * filtra con la función `can` de la sesión, que consulta los permisos REALES
+ * que el backend leyó de `rol_permiso`. El Sidebar no sabe nada de roles:
+ * solo pinta lo que le llega.
  */
 const MENU_GROUPS_DEF = [
   {
@@ -109,23 +110,27 @@ function resolveItem(item, role) {
   };
 }
 
-/** Grupos del menu visibles para un rol (los grupos vacios se descartan). */
-function getMenuGroups(role) {
-  if (!role) return [];
+/**
+ * Grupos visibles para la sesión actual.
+ * @param role rol del usuario, solo para los textos que cambian por perfil
+ * @param can  función de useAuth() que consulta los permisos reales
+ */
+function getMenuGroups(role, can) {
+  if (!role || typeof can !== "function") return [];
   return MENU_GROUPS_DEF
     .map((group) => ({
       ...group,
       label: group.labelByRole?.[role] ?? group.label,
       items: group.items
-        .filter((item) => !item.permission || roleCan(role, item.permission))
+        .filter((item) => !item.permission || can(item.permission))
         .map((item) => resolveItem(item, role))
     }))
     .filter((group) => group.items.length > 0);
 }
 
 /** Lista plana de items visibles (la usa el Breadcrumb). */
-function getMenuItems(role) {
-  return getMenuGroups(role).flatMap((group) => group.items);
+function getMenuItems(role, can) {
+  return getMenuGroups(role, can).flatMap((group) => group.items);
 }
 
 export { MENU_GROUPS_DEF, getMenuGroups, getMenuItems };

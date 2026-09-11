@@ -12,7 +12,8 @@ function CategoryFormModal({
   isEditing,
   categoryForm,
   onCategoryFormChange,
-  onSave
+  onSave,
+  error
 }) {
   const nombre = categoryForm.nombre ?? categoryForm.name ?? "";
   const descripcion = categoryForm.descripcion ?? categoryForm.description ?? "";
@@ -72,6 +73,9 @@ function CategoryFormModal({
             value: "inactive",
             label: "Inactivo"
           }]
+        }), error && /* @__PURE__ */jsx("div", {
+          className: "rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive",
+          children: error
         }), /* @__PURE__ */jsxs("div", {
           className: "flex justify-end gap-3 border-t border-border pt-5",
           children: [/* @__PURE__ */jsx(Button, {

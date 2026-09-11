@@ -15,7 +15,8 @@ function ProductFormModal({
   onProductFormChange,
   categories,
   suppliers,
-  onSave
+  onSave,
+  error
 }) {
   const nombre = productForm.nombre ?? productForm.name ?? "";
   const descripcion = productForm.descripcion ?? productForm.description ?? "";
@@ -250,6 +251,10 @@ function ProductFormModal({
                   }))]
                 })
               ]
+            }),
+            error && /* @__PURE__ */jsx("div", {
+              className: "rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive",
+              children: error
             }),
             /* @__PURE__ */jsxs("div", {
               className: "flex justify-end gap-3 border-t border-border pt-5",

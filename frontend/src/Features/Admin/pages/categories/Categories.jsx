@@ -25,6 +25,10 @@ function Categories() {
     categoryToDelete,
     sortOptions,
     sortedCategories,
+    totalItems,
+    isLoading,
+    loadError,
+    actionError,
     totalPages,
     paginatedCategories,
     handleSearchChange,
@@ -40,9 +44,16 @@ function Categories() {
     handleCloseDetailModal,
     handleSaveCategory
   } = useCategories();
+  const aviso = loadError || actionError
+    ? /* @__PURE__ */jsx("div", {
+        className: "rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive",
+        children: loadError || actionError
+      })
+    : null;
+
   return /* @__PURE__ */jsxs("div", {
     className: "space-y-6",
-    children: [/* @__PURE__ */jsx(CategoriesHeader, {
+    children: [aviso, /* @__PURE__ */jsx(CategoriesHeader, {
       onNewCategory: openNewCategoryModal,
       rows: sortedCategories
     }), /* @__PURE__ */jsx(CategoriesStats, {
@@ -63,7 +74,7 @@ function Categories() {
       categories: paginatedCategories,
       currentPage,
       totalPages,
-      totalItems: sortedCategories.length,
+      totalItems,
       itemsPerPage,
       onPageChange: setCurrentPage,
       onShowDetail: handleShowCategoryDetail,
@@ -76,7 +87,8 @@ function Categories() {
       isEditing: !!selectedCategory,
       categoryForm,
       onCategoryFormChange: setCategoryForm,
-      onSave: handleSaveCategory
+      onSave: handleSaveCategory,
+      error: actionError
     }), /* @__PURE__ */jsx(CategoryDetailModal, {
       isOpen: detailModalOpen,
       onClose: handleCloseDetailModal,

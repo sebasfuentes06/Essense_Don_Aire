@@ -9,11 +9,11 @@ import { UserProfile } from "./UserProfile";
 
 function Sidebar({ mobileOpen = false, onToggleMobile }) {
   const { collapsed, toggle } = useSidebar();
-  const { role } = useAuth();
+  const { role, can } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const menuGroups = getMenuGroups(role);
+  const menuGroups = getMenuGroups(role, can);
 
   const activeGroupId = menuGroups.find((group) =>
     group.items.some((item) => item.path === pathname)

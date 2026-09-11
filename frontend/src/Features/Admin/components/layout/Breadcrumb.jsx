@@ -4,11 +4,11 @@ import { useAuth } from "../../../../shared/auth";
 import { getMenuItems } from "./menu-items";
 
 function Breadcrumb() {
-  const { role } = useAuth();
+  const { role, can } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const currentItem = getMenuItems(role).find((item) => item.path === pathname);
+  const currentItem = getMenuItems(role, can).find((item) => item.path === pathname);
   if (!currentItem || pathname === "/panel") return null;
 
   return (
