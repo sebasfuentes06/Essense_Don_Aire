@@ -67,6 +67,15 @@
 --     para no romper el módulo de Compras que ya las usa.)
 --   - Tres vistas nuevas sostienen el módulo: saldo por venta, listado de
 --     abonos y estado de cuenta agregado por cliente.
+--
+-- Cambios de la v6 (preparación del backend):
+--   - El catálogo `permisos` pasa de 7 a 56 entradas: ahora refleja TODOS
+--     los permisos que la interfaz consulta realmente. Antes la BD conocía
+--     una fracción, así que un login contra la base habría dejado al
+--     Administrador sin acceso a casi nada.
+--   - `rol_permiso` se siembra por rol según el story mapping
+--     (Administrador 52, Vendedor 30, Cliente 11) y Supervisor queda como
+--     perfil de solo consulta.
 -- ============================================================
 
 -- ============================================================
@@ -399,24 +408,94 @@ INSERT INTO roles (nombre, descripcion, estado) VALUES
     ('Cliente', 'Cuenta de cliente de la tienda', TRUE);
 
 INSERT INTO permisos (id_permiso, nombre, descripcion, modulo) VALUES
-    ('dashboard.view',  'Ver Dashboard',      'Acceso al panel principal',        'Dashboard'),
-    ('products.view',   'Ver Productos',      'Ver listado de productos',         'Productos'),
-    ('products.create', 'Crear Productos',    'Crear nuevos productos',           'Productos'),
-    ('products.edit',   'Editar Productos',   'Modificar productos existentes',   'Productos'),
-    ('sales.view',      'Ver Ventas',         'Ver historial de ventas',          'Ventas'),
-    ('customers.view',  'Ver Clientes',       'Ver listado de clientes',          'Clientes'),
-    ('users.view',      'Ver Usuarios',       'Ver listado de usuarios',          'Usuarios');
+    ('catalog.edit', 'Configurar Catálogo', 'Destacados, promociones y orden del catálogo', 'Catálogo'),
+    ('catalog.view', 'Ver Catálogo', 'Consultar el catálogo de fragancias', 'Catálogo'),
+    ('categories.create', 'Crear Categorías', 'Registrar una categoría nueva', 'Categorías'),
+    ('categories.delete', 'Eliminar Categorías', 'Eliminar una categoría', 'Categorías'),
+    ('categories.edit', 'Editar Categorías', 'Modificar una categoría existente', 'Categorías'),
+    ('categories.view', 'Ver Categorías', 'Ver el listado de categorías', 'Categorías'),
+    ('customers.create', 'Crear Clientes', 'Registrar un cliente nuevo', 'Clientes'),
+    ('customers.delete', 'Eliminar Clientes', 'Eliminar un cliente', 'Clientes'),
+    ('customers.edit', 'Editar Clientes', 'Modificar un cliente existente', 'Clientes'),
+    ('customers.toggle', 'Activar/desactivar cliente', 'Cambiar el estado de un cliente', 'Clientes'),
+    ('customers.view', 'Ver Clientes', 'Ver el listado de clientes', 'Clientes'),
+    ('dashboard.view', 'Ver Dashboard', 'Acceso al panel principal', 'Dashboard'),
+    ('data.export', 'Exportar datos', 'Descargar listados en CSV e imprimir en PDF', 'Sistema'),
+    ('orders.cancel', 'Cancelar pedido', 'Cancelar un pedido que siga pendiente', 'Pedidos'),
+    ('orders.convert', 'Convertir pedido en venta', 'Generar la venta a partir de un pedido', 'Pedidos'),
+    ('orders.create', 'Crear Pedidos', 'Registrar un pedido nuevo', 'Pedidos'),
+    ('orders.delete', 'Eliminar Pedidos', 'Eliminar un pedido', 'Pedidos'),
+    ('orders.edit', 'Editar Pedidos', 'Modificar un pedido existente', 'Pedidos'),
+    ('orders.own', 'Ver solo sus pedidos', 'Limita la vista a los pedidos propios o sin asignar', 'Pedidos'),
+    ('orders.status', 'Cambiar estado del pedido', 'Mover el pedido entre pendiente, confirmado y cancelado', 'Pedidos'),
+    ('orders.view', 'Ver Pedidos', 'Ver el listado de pedidos', 'Pedidos'),
+    ('payments.create', 'Crear Pagos y Abonos', 'Registrar un pago nuevo', 'Pagos y Abonos'),
+    ('payments.delete', 'Eliminar Pagos y Abonos', 'Eliminar un pago', 'Pagos y Abonos'),
+    ('payments.edit', 'Editar Pagos y Abonos', 'Modificar un pago existente', 'Pagos y Abonos'),
+    ('payments.own', 'Ver solo sus pagos', 'Limita los abonos a los propios', 'Pagos y Abonos'),
+    ('payments.statement', 'Ver estado de cuenta', 'Consultar saldos y abonos por cliente', 'Pagos y Abonos'),
+    ('payments.view', 'Ver Pagos y Abonos', 'Ver el listado de pagos y abonos', 'Pagos y Abonos'),
+    ('products.create', 'Crear Productos', 'Registrar un producto nuevo', 'Productos'),
+    ('products.delete', 'Eliminar Productos', 'Eliminar un producto', 'Productos'),
+    ('products.edit', 'Editar Productos', 'Modificar un producto existente', 'Productos'),
+    ('products.view', 'Ver Productos', 'Ver el listado de productos', 'Productos'),
+    ('profile.edit', 'Editar mi perfil', 'Actualizar los datos de la propia cuenta', 'Mi cuenta'),
+    ('profile.view', 'Ver mi perfil', 'Consultar los datos de la propia cuenta', 'Mi cuenta'),
+    ('purchases.create', 'Crear Compras', 'Registrar una compra nueva', 'Compras'),
+    ('purchases.delete', 'Eliminar Compras', 'Eliminar una compra', 'Compras'),
+    ('purchases.edit', 'Editar Compras', 'Modificar una compra existente', 'Compras'),
+    ('purchases.view', 'Ver Compras', 'Ver el listado de compras', 'Compras'),
+    ('roles.create', 'Crear Roles', 'Registrar un rol nuevo', 'Roles'),
+    ('roles.delete', 'Eliminar Roles', 'Eliminar un rol', 'Roles'),
+    ('roles.edit', 'Editar Roles', 'Modificar un rol existente', 'Roles'),
+    ('roles.view', 'Ver Roles', 'Ver el listado de roles', 'Roles'),
+    ('sales.cancel', 'Anular venta', 'Anular una venta con justificación', 'Ventas'),
+    ('sales.create', 'Crear Ventas', 'Registrar una venta nueva', 'Ventas'),
+    ('sales.delete', 'Eliminar Ventas', 'Eliminar una venta', 'Ventas'),
+    ('sales.edit', 'Editar Ventas', 'Modificar una venta existente', 'Ventas'),
+    ('sales.own', 'Ver solo sus ventas', 'Limita el historial a las ventas propias', 'Ventas'),
+    ('sales.view', 'Ver Ventas', 'Ver el listado de ventas', 'Ventas'),
+    ('suppliers.create', 'Crear Proveedores', 'Registrar un proveedor nuevo', 'Proveedores'),
+    ('suppliers.delete', 'Eliminar Proveedores', 'Eliminar un proveedor', 'Proveedores'),
+    ('suppliers.edit', 'Editar Proveedores', 'Modificar un proveedor existente', 'Proveedores'),
+    ('suppliers.toggle', 'Activar/desactivar proveedor', 'Cambiar el estado de un proveedor', 'Proveedores'),
+    ('suppliers.view', 'Ver Proveedores', 'Ver el listado de proveedores', 'Proveedores'),
+    ('users.create', 'Crear Usuarios', 'Registrar un usuario nuevo', 'Usuarios'),
+    ('users.delete', 'Eliminar Usuarios', 'Eliminar un usuario', 'Usuarios'),
+    ('users.edit', 'Editar Usuarios', 'Modificar un usuario existente', 'Usuarios'),
+    ('users.view', 'Ver Usuarios', 'Ver el listado de usuarios', 'Usuarios');
 
--- Administrador: todos los permisos
-INSERT INTO rol_permiso (id_rol, id_permiso)
-    SELECT (SELECT id_rol FROM roles WHERE nombre = 'Administrador'), id_permiso FROM permisos;
+-- Permisos por rol. Cada lista es EXACTAMENTE la del frontend
+-- (shared/auth/roles.js), para que la BD y la interfaz no diverjan.
+-- Nota: los permisos '.own' no conceden, RESTRINGEN ("ve solo lo suyo"),
+-- por eso el Administrador no los tiene.
 
--- Vendedor y Supervisor: dashboard, productos, ventas, clientes
+-- Administrador (52 permisos)
 INSERT INTO rol_permiso (id_rol, id_permiso)
-    SELECT r.id_rol, p.id_permiso
-    FROM roles r, permisos p
-    WHERE r.nombre IN ('Vendedor', 'Supervisor')
-      AND p.id_permiso IN ('dashboard.view', 'products.view', 'sales.view', 'customers.view');
+    SELECT (SELECT id_rol FROM roles WHERE nombre = 'Administrador'), id_permiso
+    FROM permisos WHERE id_permiso IN (
+        'catalog.edit', 'catalog.view', 'categories.create', 'categories.delete', 'categories.edit', 'categories.view', 'customers.create', 'customers.delete', 'customers.edit', 'customers.toggle', 'customers.view', 'dashboard.view', 'data.export', 'orders.convert', 'orders.create', 'orders.delete', 'orders.edit', 'orders.status', 'orders.view', 'payments.create', 'payments.delete', 'payments.edit', 'payments.statement', 'payments.view', 'products.create', 'products.delete', 'products.edit', 'products.view', 'profile.edit', 'profile.view', 'purchases.create', 'purchases.delete', 'purchases.edit', 'purchases.view', 'roles.create', 'roles.delete', 'roles.edit', 'roles.view', 'sales.cancel', 'sales.create', 'sales.delete', 'sales.edit', 'sales.view', 'suppliers.create', 'suppliers.delete', 'suppliers.edit', 'suppliers.toggle', 'suppliers.view', 'users.create', 'users.delete', 'users.edit', 'users.view'
+    );
+
+-- Vendedor (29 permisos)
+INSERT INTO rol_permiso (id_rol, id_permiso)
+    SELECT (SELECT id_rol FROM roles WHERE nombre = 'Vendedor'), id_permiso
+    FROM permisos WHERE id_permiso IN (
+        'catalog.view', 'categories.create', 'categories.edit', 'categories.view', 'customers.create', 'customers.edit', 'customers.view', 'dashboard.view', 'data.export', 'orders.convert', 'orders.create', 'orders.delete', 'orders.edit', 'orders.own', 'orders.view', 'payments.create', 'payments.own', 'payments.statement', 'payments.view', 'products.edit', 'products.view', 'profile.edit', 'profile.view', 'purchases.view', 'sales.cancel', 'sales.create', 'sales.own', 'sales.view', 'suppliers.view'
+    );
+
+-- Cliente (11 permisos)
+INSERT INTO rol_permiso (id_rol, id_permiso)
+    SELECT (SELECT id_rol FROM roles WHERE nombre = 'Cliente'), id_permiso
+    FROM permisos WHERE id_permiso IN (
+        'catalog.view', 'dashboard.view', 'orders.cancel', 'orders.create', 'orders.own', 'orders.view', 'payments.own', 'payments.statement', 'payments.view', 'profile.edit', 'profile.view'
+    );
+
+-- Supervisor: perfil de solo consulta
+INSERT INTO rol_permiso (id_rol, id_permiso)
+    SELECT (SELECT id_rol FROM roles WHERE nombre = 'Supervisor'), id_permiso
+    FROM permisos
+    WHERE id_permiso LIKE '%.view' OR id_permiso IN ('data.export', 'profile.edit');
 
 INSERT INTO metodo_pago (nombre, codigo, estado) VALUES
     ('Efectivo',      'cash',     TRUE),
