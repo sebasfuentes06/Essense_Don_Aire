@@ -9,6 +9,7 @@ import {
   Shield,
   ShoppingBag,
   ClipboardList,
+  WalletCards,
   LayoutGrid,
   Home
 } from "lucide-react";
@@ -48,7 +49,7 @@ const MENU_GROUPS_DEF = [
   {
     id: "operaciones",
     label: "OPERACIONES",
-    labelByRole: { [ROLES.CLIENT]: "PEDIDOS" },
+    labelByRole: { [ROLES.CLIENT]: "MI ACTIVIDAD" },
     items: [
       {
         icon: ClipboardList,
@@ -64,7 +65,14 @@ const MENU_GROUPS_DEF = [
         permission: "sales.view",
         labelByRole: { [ROLES.SELLER]: "Mis ventas" }
       },
-      { icon: ShoppingBag, label: "Compras", path: "/panel/compras", permission: "purchases.view" }
+      { icon: ShoppingBag, label: "Compras", path: "/panel/compras", permission: "purchases.view" },
+      {
+        icon: WalletCards,
+        label: "Pagos y abonos",
+        path: "/panel/pagos",
+        permission: "payments.view",
+        labelByRole: { [ROLES.CLIENT]: "Mi estado de cuenta" }
+      }
     ]
   },
   {

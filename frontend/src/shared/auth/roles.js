@@ -45,6 +45,7 @@ const ROLE_LIST = [
  * "orders.convert" -> puede convertir el pedido en venta
  * "orders.cancel"  -> puede cancelar su propio pedido mientras siga pendiente
  * "data.export"    -> puede descargar listados en CSV e imprimir en PDF
+ * "payments.statement" -> puede consultar estados de cuenta
  */
 const PERMISSIONS_BY_ROLE = {
   [ROLES.ADMIN]: [
@@ -54,6 +55,7 @@ const PERMISSIONS_BY_ROLE = {
     "categories.view", "categories.create", "categories.edit", "categories.delete",
     "sales.view", "sales.create", "sales.edit", "sales.delete", "sales.cancel",
     "orders.view", "orders.create", "orders.edit", "orders.delete", "orders.status", "orders.convert",
+    "payments.view", "payments.create", "payments.edit", "payments.delete", "payments.statement",
     "purchases.view", "purchases.create", "purchases.edit", "purchases.delete",
     "customers.view", "customers.create", "customers.edit", "customers.delete", "customers.toggle",
     "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete", "suppliers.toggle",
@@ -74,6 +76,8 @@ const PERMISSIONS_BY_ROLE = {
     "sales.view", "sales.create", "sales.own", "sales.cancel",
     // "orders.own" limita edicion y borrado a los pedidos aun pendientes
     "orders.view", "orders.own", "orders.create", "orders.edit", "orders.delete", "orders.convert",
+    // registra abonos de sus ventas y consulta el estado de cuenta, pero no borra pagos
+    "payments.view", "payments.own", "payments.create", "payments.statement",
     "purchases.view",
     "customers.view", "customers.create", "customers.edit",
     "suppliers.view",
@@ -88,6 +92,8 @@ const PERMISSIONS_BY_ROLE = {
     "catalog.view",
     // el Cliente crea pedidos desde el carrito y solo puede cancelar los pendientes
     "orders.view", "orders.own", "orders.create", "orders.cancel",
+    // solo consulta: su estado de cuenta, sus abonos y su saldo
+    "payments.view", "payments.own", "payments.statement",
     "profile.view", "profile.edit"
   ]
 };

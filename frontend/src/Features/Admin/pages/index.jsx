@@ -3,6 +3,7 @@ import { Customers } from "./customers/Customers";
 import { Dashboard } from "./dashboard/Dashboard";
 import { SellerDashboard } from "./dashboard/SellerDashboard";
 import { Orders } from "./orders/Orders";
+import { Payments } from "./payments/Payments";
 import { ProductCatalog } from "./productCatalog/ProductCatalog";
 import { ProductsManagement } from "./productsManagement/ProductsManagement";
 import { Purchases } from "./purchases/Purchases";
@@ -16,6 +17,7 @@ export {
   Dashboard,
   SellerDashboard,
   Orders,
+  Payments,
   ProductCatalog,
   ProductsManagement,
   Purchases,

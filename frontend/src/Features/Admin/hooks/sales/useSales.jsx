@@ -36,6 +36,16 @@ const mockSales = [
     subtotal: 149.98,
     discount: 0,
     total: 149.98, paymentMethod: "mixed", status: "cancelled"
+  },
+  {
+    id: 5, folio: "VTA-005", date: "2024-06-02", customer: "Laura Cliente",
+    seller: "Carlos Vendedor", items: [
+      { productId: 4, productName: "Velvet Rose", quantity: 2, unitPrice: 69.99, discount: 0 },
+      { productId: 5, productName: "Ocean Breeze", quantity: 1, unitPrice: 64.99, discount: 0 }
+    ],
+    subtotal: 204.97,
+    discount: 0,
+    total: 204.97, paymentMethod: "cash", status: "completed"
   }
 ];
 const mockSellers = ["Carlos Vendedor", "Mar\xEDa Vendedora", "Admin Principal"];

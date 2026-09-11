@@ -56,6 +56,17 @@
 --     vendedor asignado.
 --   - `pedidos.canal` distingue de dónde entró el pedido (web, WhatsApp
 --     o punto físico), tal como aparece en el story mapping.
+--
+-- Cambios de la v5 (módulo Pagos y Abonos):
+--   - `pagos_ventas` gana `folio` (PAG-001) para poder referenciar un abono
+--     desde la interfaz, igual que ya lo hacen ventas, compras y pedidos.
+--   - NO se agregan columnas `pagado` / `saldo` a `ventas`: el saldo se
+--     deriva de la suma de sus abonos. Guardarlo sería duplicar un dato
+--     calculable y abrir la puerta a que las dos cifras se desincronicen.
+--     (En `compras` sí existen esas columnas: viene de la v3 y se conserva
+--     para no romper el módulo de Compras que ya las usa.)
+--   - Tres vistas nuevas sostienen el módulo: saldo por venta, listado de
+--     abonos y estado de cuenta agregado por cliente.
 -- ============================================================
 
 -- ============================================================
@@ -298,6 +309,7 @@ CREATE TABLE detalle_venta (
 
 CREATE TABLE pagos_ventas (
     id_pago         SERIAL PRIMARY KEY,
+    folio           VARCHAR(20) NOT NULL UNIQUE,   -- PaymentsTable: "PAG-001"
     id_venta        INT NOT NULL,
     id_metodo_pago  INT NOT NULL,
     fecha_pago      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -307,8 +319,11 @@ CREATE TABLE pagos_ventas (
         FOREIGN KEY (id_venta) REFERENCES ventas (id_venta)
         ON DELETE CASCADE,
     CONSTRAINT fk_pagos_metodopago
-        FOREIGN KEY (id_metodo_pago) REFERENCES metodo_pago (id_metodo_pago)
+        FOREIGN KEY (id_metodo_pago) REFERENCES metodo_pago (id_metodo_pago),
+    CONSTRAINT chk_pagos_monto CHECK (monto > 0)
 );
+
+CREATE INDEX idx_pagos_ventas_venta ON pagos_ventas (id_venta);
 
 -- ============================================================
 -- 8. PEDIDOS (solicitudes del cliente, previas a la venta)
@@ -613,6 +628,72 @@ LEFT JOIN detalle_pedido dp ON dp.id_pedido = p.id_pedido
 LEFT JOIN productos pr ON pr.id_producto = dp.id_producto
 GROUP BY p.id_pedido, cli.nombre, ven.nombre;
 
+-- ------------------------------------------------------------
+-- Módulo Pagos y Abonos
+-- ------------------------------------------------------------
+-- El saldo NO se guarda en ninguna tabla: se calcula restando los
+-- abonos al total de la venta. Estas tres vistas son la única fuente
+-- de verdad de "cuánto debe" un cliente.
+
+-- Saldo de cada venta (base de las otras dos vistas)
+CREATE OR REPLACE VIEW vw_frontend_ventas_saldo AS
+SELECT
+    v.id_venta AS id,
+    v.folio,
+    v.fecha_venta AS date,
+    cli.id_usuario AS "customerId",
+    cli.nombre AS customer,
+    ven.nombre AS seller,
+    v.total,
+    COALESCE(SUM(p.monto), 0)::NUMERIC(12,2) AS paid,
+    (v.total - COALESCE(SUM(p.monto), 0))::NUMERIC(12,2) AS balance,
+    CASE
+        WHEN v.estado = 'cancelled' THEN 'cancelled'
+        WHEN COALESCE(SUM(p.monto), 0) >= v.total THEN 'paid'
+        WHEN COALESCE(SUM(p.monto), 0) > 0 THEN 'partial'
+        ELSE 'pending'
+    END AS "paymentStatus"
+FROM ventas v
+JOIN usuarios cli ON cli.id_usuario = v.id_cliente
+JOIN usuarios ven ON ven.id_usuario = v.id_usuario
+LEFT JOIN pagos_ventas p ON p.id_venta = v.id_venta
+GROUP BY v.id_venta, v.folio, v.fecha_venta, cli.id_usuario, cli.nombre, ven.nombre, v.total, v.estado;
+
+-- Listado de abonos (una fila por pago registrado)
+CREATE OR REPLACE VIEW vw_frontend_pagos AS
+SELECT
+    p.id_pago AS id,
+    p.folio,
+    v.id_venta AS "saleId",
+    v.folio AS "saleFolio",
+    cli.id_usuario AS "customerId",
+    cli.nombre AS customer,
+    ven.nombre AS seller,
+    p.fecha_pago AS date,
+    p.monto AS amount,
+    mp.codigo AS method,
+    p.referencia AS reference
+FROM pagos_ventas p
+JOIN ventas v ON v.id_venta = p.id_venta
+JOIN usuarios cli ON cli.id_usuario = v.id_cliente
+JOIN usuarios ven ON ven.id_usuario = v.id_usuario
+JOIN metodo_pago mp ON mp.id_metodo_pago = p.id_metodo_pago;
+
+-- Estado de cuenta por cliente (las ventas anuladas no cuentan)
+CREATE OR REPLACE VIEW vw_frontend_estado_cuenta AS
+SELECT
+    s."customerId" AS id,
+    s.customer,
+    COUNT(*)::INT AS "salesCount",
+    COUNT(*) FILTER (WHERE s."paymentStatus" <> 'paid')::INT AS "openSales",
+    SUM(s.total)::NUMERIC(12,2) AS invoiced,
+    SUM(s.paid)::NUMERIC(12,2) AS paid,
+    SUM(s.balance)::NUMERIC(12,2) AS balance,
+    MAX(s.date) FILTER (WHERE s.paid > 0) AS "lastActivity"
+FROM vw_frontend_ventas_saldo s
+WHERE s."paymentStatus" <> 'cancelled'
+GROUP BY s."customerId", s.customer;
+
 -- ============================================================
--- FIN DEL SCRIPT — 17 tablas + 9 vistas de contrato
+-- FIN DEL SCRIPT — 17 tablas + 12 vistas de contrato
 -- ============================================================
