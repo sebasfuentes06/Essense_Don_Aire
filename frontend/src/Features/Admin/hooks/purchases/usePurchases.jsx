@@ -1,263 +1,437 @@
-import { useState } from "react";
-const mockPurchases = [
-  {
-    id: 1, folio: "OC-001", date: "2024-05-15", supplierId: 1, supplierName: "Fragancias Premium SA", items: [
-      { productName: "Essence Royale (x50)", quantity: 50, unitCost: 45 },
-      { productName: "Noir Elegance (x30)", quantity: 30, unitCost: 38 }
-    ],
-    subtotal: 3390,
-    tax: 542.4,
-    total: 3932.4,
-    paid: 3932.4,
-    balance: 0, status: "paid", payments: []
-  },
-  {
-    id: 2, folio: "OC-002", date: "2024-05-20", supplierId: 2, supplierName: "Perfumes Internacionales", items: [
-      { productName: "Golden Mist (x40)", quantity: 40, unitCost: 40 }
-    ],
-    subtotal: 1600,
-    tax: 256,
-    total: 1856,
-    paid: 1e3,
-    balance: 856, status: "partial", payments: []
-  },
-  {
-    id: 3, folio: "OC-003", date: "2024-06-01", supplierId: 3, supplierName: "Aromas del Mundo", items: [
-      { productName: "Rose Oud (x25)", quantity: 25, unitCost: 52 }
-    ],
-    subtotal: 1300,
-    tax: 208,
-    total: 1508,
-    paid: 0,
-    balance: 1508, status: "pending", payments: []
-  }
-];
-const mockSuppliers = [
-  { id: 1, name: "Fragancias Premium SA" },
-  { id: 2, name: "Perfumes Internacionales" },
-  { id: 3, name: "Aromas del Mundo" }
-];
-const availableProducts = [
-  { id: 1, name: "Essence Royale", price: 89.99, stock: 45 },
-  { id: 2, name: "Noir Elegance", price: 74.99, stock: 12 },
-  { id: 3, name: "Golden Mist", price: 79.99, stock: 5 },
-  { id: 4, name: "Velvet Rose", price: 69.99, stock: 28 },
-  { id: 5, name: "Ocean Breeze", price: 64.99, stock: 0 }
-];
-const initialPurchaseForm = {
-  folio: "",
-  id_proveedor: "",
-  fecha_compra: "",
-  estado: "pending",
-  subtotal: 0,
-  impuesto: 0,
-  total: 0,
-  items: [],
-  supplierId: "",
-  date: "",
-  status: "pending",
-  tax: 0
-};
+import { useCallback, useEffect, useState } from "react";
+import { api, ApiError } from "../../../../shared/api";
+
+/**
+ * Compras a proveedores, ya contra la API.
+ *
+ * Es el primer módulo que no solo guarda: mueve el inventario. Por eso hay
+ * tres cosas que cambian respecto a los CRUD anteriores.
+ *
+ * 1. No hay edición. Una compra registrada ya sumó al stock y es el soporte
+ *    de lo que se le debe al proveedor. Si quedó mal, se cancela —lo que
+ *    devuelve el stock— y se hace otra.
+ *
+ * 2. El estado no se elige. Antes había un desplegable con Pendiente /
+ *    Parcial / Pagado y nada impedía marcar "Pagado" una compra que nadie
+ *    pagó. Ahora sale de los abonos registrados.
+ *
+ * 3. El costo se escribe. El formulario anterior tomaba el `unitCost` del
+ *    PRECIO DE VENTA del producto, que es lo que le cobras al cliente, no lo
+ *    que le pagas al proveedor. Con eso, toda compra quedaba registrada por
+ *    un valor más alto del real y el margen del negocio desaparecía.
+ */
+
 const sortOptions = [
   { value: "date", label: "Fecha" },
   { value: "folio", label: "Folio" },
   { value: "supplierName", label: "Proveedor" },
-  { value: "total", label: "Total" }
+  { value: "total", label: "Total" },
+  { value: "balance", label: "Saldo" }
 ];
+
+const emptyStats = {
+  total: 0,
+  porPagar: 0,
+  canceladas: 0,
+  totalComprado: 0,
+  saldoPendiente: 0
+};
+
+const emptyForm = {
+  folio: "",
+  id_proveedor: "",
+  fecha_compra: new Date().toISOString().slice(0, 10),
+  impuesto: "",
+  items: []
+};
+
+const emptyPago = { id_metodo_pago: "", monto: "", referencia: "" };
+
 function usePurchases() {
-  const [purchases, setPurchases] = useState(mockPurchases);
+  const [purchases, setPurchases] = useState([]);
+  const [exportRows, setExportRows] = useState([]);
+  const [stats, setStats] = useState(emptyStats);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [suppliers, setSuppliers] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [suggestedFolio, setSuggestedFolio] = useState("");
+  const [supplierProducts, setSupplierProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [formErrors, setFormErrors] = useState({});
+
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [supplierFilter, setSupplierFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortBy, setSortBy] = useState("date");
   const [sortDirection, setSortDirection] = useState("desc");
-  const [detailPurchase, setDetailPurchase] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const [isPurchaseFormOpen, setIsPurchaseFormOpen] = useState(false);
-  const [selectedPurchase, setSelectedPurchase] = useState(null);
-  const [purchaseForm, setPurchaseForm] = useState(initialPurchaseForm);
+  const [purchaseForm, setPurchaseForm] = useState(emptyForm);
+
+  const [detailPurchase, setDetailPurchase] = useState(null);
+
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [purchaseToPay, setPurchaseToPay] = useState(null);
+  const [paymentForm, setPaymentForm] = useState(emptyPago);
+
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [purchaseToCancel, setPurchaseToCancel] = useState(null);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [purchaseToDelete, setPurchaseToDelete] = useState(null);
-  const filtered = purchases.filter((p) => {
-    const matchSearch = p.folio.toLowerCase().includes(searchQuery.toLowerCase()) || p.supplierName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchStatus = statusFilter === "all" || p.status === statusFilter;
-    const matchSupplier = supplierFilter === "all" || p.supplierName === supplierFilter;
-    const matchDateFrom = !dateFrom || p.date >= dateFrom;
-    const matchDateTo = !dateTo || p.date <= dateTo;
-    return matchSearch && matchStatus && matchSupplier && matchDateFrom && matchDateTo;
-  });
-  const sorted = [...filtered].sort((a, b) => {
-    const aValue = typeof a[sortBy] === "string" ? a[sortBy].toLowerCase() : a[sortBy];
-    const bValue = typeof b[sortBy] === "string" ? b[sortBy].toLowerCase() : b[sortBy];
-    return sortDirection === "asc" ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
-  });
-  const totalPages = Math.ceil(sorted.length / itemsPerPage);
-  const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const totalPurchased = purchases.reduce((s, p) => s + p.total, 0);
-  const totalBalance = purchases.reduce((s, p) => s + p.balance, 0);
-  const pendingCount = purchases.filter((p) => p.status === "pending" || p.status === "partial").length;
-  const handleViewDetail = (purchase) => {
-    setDetailPurchase(purchase);
+
+  // Se espera a que la persona deje de escribir: sin esto, "Fragancias"
+  // dispara diez peticiones, una por letra.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearchTerm(searchQuery);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
+
+  const filtros = {
+    search: searchTerm,
+    status: statusFilter,
+    supplierId: supplierFilter,
+    from: dateFrom,
+    to: dateTo,
+    sortBy,
+    sortDir: sortDirection
   };
-  const handleCloseDetail = () => {
-    setDetailPurchase(null);
+
+  const fetchPurchases = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      const { data, stats: resumen, meta } = await api.get("/compras", {
+        search: searchTerm,
+        status: statusFilter,
+        supplierId: supplierFilter,
+        from: dateFrom,
+        to: dateTo,
+        sortBy,
+        sortDir: sortDirection,
+        page: currentPage,
+        limit: itemsPerPage
+      });
+      setPurchases(data ?? []);
+      setStats(resumen ?? emptyStats);
+      setTotalItems(meta?.total ?? 0);
+      setTotalPages(meta?.totalPages ?? 1);
+    } catch (error) {
+      setPurchases([]);
+      setTotalItems(0);
+      setLoadError(error instanceof ApiError ? error.message : "No se pudieron cargar las compras.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchTerm, statusFilter, supplierFilter, dateFrom, dateTo, sortBy, sortDirection, currentPage, itemsPerPage]);
+
+  /**
+   * Las filas del CSV. Van aparte porque la tabla solo tiene en memoria la
+   * página actual: exportar eso se llevaría diez filas de cincuenta sin avisar.
+   */
+  const fetchExportRows = useCallback(async () => {
+    try {
+      const { data } = await api.get("/compras", { ...filtros, page: 1, limit: 100 });
+      setExportRows(data ?? []);
+    } catch {
+      setExportRows([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, supplierFilter, dateFrom, dateTo, sortBy, sortDirection]);
+
+  const fetchOpciones = useCallback(async () => {
+    try {
+      const { proveedores, metodosPago, folioSugerido } = await api.get("/compras/opciones");
+      setSuppliers(proveedores ?? []);
+      setPaymentMethods(metodosPago ?? []);
+      setSuggestedFolio(folioSugerido ?? "");
+    } catch {
+      setSuppliers([]);
+      setPaymentMethods([]);
+    }
+  }, []);
+
+  useEffect(() => { fetchPurchases(); }, [fetchPurchases]);
+  useEffect(() => { fetchExportRows(); }, [fetchExportRows]);
+  useEffect(() => { fetchOpciones(); }, [fetchOpciones]);
+
+  /**
+   * Al elegir proveedor se traen SUS productos.
+   *
+   * La lista no es un adorno: la API rechaza una compra que traiga productos
+   * de otro proveedor, porque `productos.id_proveedor` dice a quién se le
+   * compra cada uno. Ofrecer solo los suyos evita que alguien arme una compra
+   * entera y se entere al guardar.
+   */
+  const idProveedorForm = purchaseForm.id_proveedor;
+  useEffect(() => {
+    if (!idProveedorForm) {
+      setSupplierProducts([]);
+      return;
+    }
+    let cancelado = false;
+    setLoadingProducts(true);
+    api
+      .get(`/compras/proveedores/${idProveedorForm}/productos`)
+      .then(({ productos }) => { if (!cancelado) setSupplierProducts(productos ?? []); })
+      .catch(() => { if (!cancelado) setSupplierProducts([]); })
+      .finally(() => { if (!cancelado) setLoadingProducts(false); });
+    return () => { cancelado = true; };
+  }, [idProveedorForm]);
+
+  const resetPage = () => setCurrentPage(1);
+  const handleSearchChange = (value) => setSearchQuery(value);
+  const conReset = (setter) => (value) => { setter(value); resetPage(); };
+
+  /**
+   * Envuelve una escritura. Los resguardos de este módulo responden con
+   * explicaciones concretas —"Ocean Breeze trajo 20 y quedan 3 en
+   * existencia"— y eso es justo lo que hay que mostrar, no un error genérico.
+   */
+  const run = async (accion) => {
+    setActionError("");
+    try {
+      const resultado = await accion();
+      await fetchPurchases();
+      await fetchExportRows();
+      await fetchOpciones();
+      return { ok: true, resultado };
+    } catch (error) {
+      setActionError(error instanceof ApiError ? error.message : "No se pudo completar la operación.");
+      if (error?.details) setFormErrors(error.details);
+      return { ok: false };
+    }
   };
+
+  /* ---------------------------------------------------------------- */
+  /* Registrar una compra                                              */
+  /* ---------------------------------------------------------------- */
+
   const handleNewPurchase = () => {
-    setSelectedPurchase(null);
-    setPurchaseForm(initialPurchaseForm);
+    setPurchaseForm({ ...emptyForm, folio: suggestedFolio });
+    setFormErrors({});
+    setActionError("");
     setIsPurchaseFormOpen(true);
   };
+
   const handleClosePurchaseForm = () => {
     setIsPurchaseFormOpen(false);
-    setSelectedPurchase(null);
-    setPurchaseForm(initialPurchaseForm);
+    setPurchaseForm(emptyForm);
+    setSupplierProducts([]);
+    setFormErrors({});
+    setActionError("");
   };
-  const handleSavePurchase = () => {
-    const supplierId = Number(purchaseForm.id_proveedor ?? purchaseForm.supplierId ?? 0);
-    const supplier = mockSuppliers.find((item) => item.id === supplierId);
-    if (!supplier) {
-      alert("Debe seleccionar un proveedor válido.");
-      return;
-    }
 
-    const folio = String(purchaseForm.folio ?? "").trim();
-    const fechaCompra = purchaseForm.fecha_compra ?? purchaseForm.date ?? "";
-    const subtotal = Number(purchaseForm.subtotal ?? 0);
-    const impuesto = Number(purchaseForm.impuesto ?? purchaseForm.tax ?? 0);
-    const total = Number(purchaseForm.total ?? 0);
-    const estadoPersist = purchaseForm.estado ?? purchaseForm.status ?? "pending";
-
-    if (!folio) {
-      alert("Debe indicar un folio.");
-      return;
-    }
-    if (!fechaCompra) {
-      alert("Debe indicar una fecha.");
-      return;
-    }
-    if (!estadoPersist) {
-      alert("Debe seleccionar un estado.");
-      return;
-    }
-    if (!Array.isArray(purchaseForm.items) || purchaseForm.items.length === 0) {
-      alert("Debe agregar al menos un producto a la compra.");
-      return;
-    }
-    if (subtotal < 0) {
-      alert("El subtotal no puede ser negativo.");
-      return;
-    }
-    if (impuesto < 0) {
-      alert("El impuesto no puede ser negativo.");
-      return;
-    }
-    if (!total || total <= 0) {
-      alert("El total debe ser mayor a 0.");
-      return;
-    }
-
-    const isPaid = estadoPersist === "paid";
-    const purchaseData = {
-      ...purchaseForm,
-      folio,
-      id_proveedor: supplierId,
-      fecha_compra: fechaCompra,
-      estado: estadoPersist,
-      subtotal,
-      impuesto,
-      total,
-      supplierId,
-      supplierName: supplier.name,
-      date: purchaseForm.date ?? purchaseForm.fecha_compra,
-      status: estadoPersist,
-      tax: impuesto,
-      paid: isPaid ? total : 0,
-      balance: isPaid ? 0 : total,
-      payments: purchaseForm.payments || []
+  const handleSavePurchase = async () => {
+    setFormErrors({});
+    const payload = {
+      folio: purchaseForm.folio,
+      id_proveedor: purchaseForm.id_proveedor,
+      fecha_compra: purchaseForm.fecha_compra || undefined,
+      impuesto: purchaseForm.impuesto === "" ? 0 : purchaseForm.impuesto,
+      items: (purchaseForm.items ?? []).map((item) => ({
+        id_producto: item.id_producto,
+        cantidad: item.cantidad,
+        precio_costo: item.precio_costo
+      }))
     };
 
-    if (selectedPurchase) {
-      setPurchases(purchases.map((purchase) => purchase.id === selectedPurchase.id ? { ...purchase, ...purchaseData } : purchase));
-    } else {
-      const nextId = Math.max(0, ...purchases.map((purchase) => purchase.id)) + 1;
-      setPurchases([...purchases, { id: nextId, ...purchaseData }]);
-    }
-    handleClosePurchaseForm();
+    const { ok } = await run(() => api.post("/compras", payload));
+    if (ok) handleClosePurchaseForm();
   };
-  const handleCancelPurchase = (purchase) => {
-    if (purchase.status === "cancelled") return;
-    setPurchases(purchases.map((item) => item.id === purchase.id ? { ...item, status: "cancelled" } : item));
-    if (detailPurchase?.id === purchase.id) {
-      setDetailPurchase({ ...purchase, status: "cancelled" });
+
+  /* ---------------------------------------------------------------- */
+  /* Detalle                                                           */
+  /* ---------------------------------------------------------------- */
+
+  const handleViewDetail = (purchase) => {
+    setActionError("");
+    setDetailPurchase(purchase);
+  };
+  const handleCloseDetail = () => setDetailPurchase(null);
+
+  /* ---------------------------------------------------------------- */
+  /* Abonos                                                            */
+  /* ---------------------------------------------------------------- */
+
+  const handleOpenPayment = (purchase) => {
+    setPurchaseToPay(purchase);
+    // Se propone el saldo completo: es lo que se paga la mayoría de las veces,
+    // y si es un abono parcial se corrige el número sin tener que escribirlo
+    // todo desde cero.
+    setPaymentForm({ ...emptyPago, monto: String(purchase.balance ?? "") });
+    setFormErrors({});
+    setActionError("");
+    setPaymentModalOpen(true);
+  };
+
+  const handleClosePayment = () => {
+    setPaymentModalOpen(false);
+    setPurchaseToPay(null);
+    setPaymentForm(emptyPago);
+    setFormErrors({});
+    setActionError("");
+  };
+
+  const handleSavePayment = async () => {
+    if (!purchaseToPay) return;
+    setFormErrors({});
+    const { ok, resultado } = await run(() =>
+      api.post(`/compras/${purchaseToPay.id}/pagos`, {
+        id_metodo_pago: paymentForm.id_metodo_pago,
+        monto: paymentForm.monto,
+        referencia: paymentForm.referencia
+      })
+    );
+    if (ok) {
+      // Si el detalle está abierto sobre esta misma compra, se refresca con lo
+      // que devolvió el servidor para que el historial y el saldo no queden
+      // mostrando la versión anterior.
+      if (detailPurchase?.id === purchaseToPay.id) setDetailPurchase(resultado);
+      handleClosePayment();
     }
   };
+
+  const handleAnularPago = async (purchase, pago) => {
+    const { ok, resultado } = await run(() =>
+      api.delete(`/compras/${purchase.id}/pagos/${pago.id}`)
+    );
+    if (ok && detailPurchase?.id === purchase.id) setDetailPurchase(resultado);
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* Cancelar y eliminar                                               */
+  /* ---------------------------------------------------------------- */
+
+  const handleCancelRequest = (purchase) => {
+    setActionError("");
+    setPurchaseToCancel(purchase);
+    setCancelDialogOpen(true);
+  };
+
+  const closeCancelDialog = () => {
+    setCancelDialogOpen(false);
+    setPurchaseToCancel(null);
+    setActionError("");
+  };
+
+  const confirmCancel = async () => {
+    if (!purchaseToCancel) return;
+    const { ok, resultado } = await run(() => api.patch(`/compras/${purchaseToCancel.id}/cancelar`));
+    if (ok) {
+      if (detailPurchase?.id === purchaseToCancel.id) setDetailPurchase(resultado);
+      setCancelDialogOpen(false);
+      setPurchaseToCancel(null);
+    }
+    // Si falló, el diálogo se queda abierto con el motivo: casi siempre es que
+    // tiene abonos o que la mercancía ya salió, y conviene leerlo.
+  };
+
   const handleDeleteRequest = (purchase) => {
+    setActionError("");
     setPurchaseToDelete(purchase);
     setDeleteDialogOpen(true);
   };
+
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
     setPurchaseToDelete(null);
+    setActionError("");
   };
-  const confirmDelete = () => {
-    if (purchaseToDelete) {
-      setPurchases(purchases.filter((p) => p.id !== purchaseToDelete.id));
+
+  const confirmDelete = async () => {
+    if (!purchaseToDelete) return;
+    const { ok } = await run(() => api.delete(`/compras/${purchaseToDelete.id}`));
+    if (ok) {
+      if (detailPurchase?.id === purchaseToDelete.id) setDetailPurchase(null);
       setDeleteDialogOpen(false);
       setPurchaseToDelete(null);
     }
   };
+
+  // Mismos nombres de siempre: la página y la tabla ya trabajan con ellos.
+  const paginated = purchases;
+  const filtered = purchases;
+
   return {
     purchases,
-    suppliers: mockSuppliers,
-    availableProducts,
+    exportRows,
+    suppliers,
+    paymentMethods,
+    suggestedFolio,
+    supplierProducts,
+    loadingProducts,
+    isLoading,
+    loadError,
+    actionError,
+    formErrors,
+    stats,
+    totalItems,
     searchQuery,
-    setSearchQuery,
+    handleSearchChange,
     statusFilter,
-    setStatusFilter,
+    setStatusFilter: conReset(setStatusFilter),
     supplierFilter,
-    setSupplierFilter,
+    setSupplierFilter: conReset(setSupplierFilter),
     dateFrom,
-    setDateFrom,
+    setDateFrom: conReset(setDateFrom),
     dateTo,
-    setDateTo,
-    currentPage,
-    setCurrentPage,
-    itemsPerPage,
-    setItemsPerPage,
+    setDateTo: conReset(setDateTo),
     sortBy,
     setSortBy,
     sortDirection,
     setSortDirection,
-    detailPurchase,
-    setDetailPurchase,
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage,
+    sortOptions,
+    filtered,
+    paginated,
+    totalPages,
     isPurchaseFormOpen,
-    selectedPurchase,
     purchaseForm,
     setPurchaseForm,
+    detailPurchase,
+    paymentModalOpen,
+    purchaseToPay,
+    paymentForm,
+    setPaymentForm,
+    cancelDialogOpen,
+    purchaseToCancel,
     deleteDialogOpen,
     purchaseToDelete,
-    filtered,
-    sorted,
-    sortOptions,
-    totalPages,
-    paginated,
-    totalPurchased,
-    totalBalance,
-    pendingCount,
-    handleViewDetail,
-    handleCloseDetail,
+    refresh: fetchPurchases,
     handleNewPurchase,
     handleClosePurchaseForm,
     handleSavePurchase,
-    handleCancelPurchase,
+    handleViewDetail,
+    handleCloseDetail,
+    handleOpenPayment,
+    handleClosePayment,
+    handleSavePayment,
+    handleAnularPago,
+    handleCancelRequest,
+    closeCancelDialog,
+    confirmCancel,
     handleDeleteRequest,
     closeDeleteDialog,
     confirmDelete
   };
 }
-export {
-  usePurchases
-};
+
+export { usePurchases, sortOptions };

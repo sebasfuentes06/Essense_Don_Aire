@@ -151,7 +151,12 @@ CREATE TABLE proveedores (
     fecha_alta      DATE NOT NULL DEFAULT CURRENT_DATE, -- "since"
     estado          BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT chk_proveedores_calificacion CHECK (calificacion BETWEEN 0 AND 5),
-    CONSTRAINT chk_proveedores_resenas CHECK (cantidad_resenas >= 0)
+    CONSTRAINT chk_proveedores_resenas CHECK (cantidad_resenas >= 0),
+    -- Dos proveedores con el mismo nombre son indistinguibles en la tabla y
+    -- en los selectores de Productos y Compras, y además hacían que
+    -- `npm run seed:demo` insertara copias en cada corrida: su
+    -- "ON CONFLICT DO NOTHING" no tenía ningún UNIQUE contra el cual chocar.
+    CONSTRAINT uq_proveedores_nombre UNIQUE (nombre)
     -- totalOrders y totalSpent (SupplierTable) NO se guardan aquí:
     -- se calculan agregando compras por id_proveedor.
 );
@@ -529,6 +534,15 @@ FROM categorias c
 LEFT JOIN productos p ON p.id_categoria = c.id_categoria
 GROUP BY c.id_categoria, c.nombre, c.descripcion, c.estado, c.created_at;
 
+-- OJO con esta vista: la versión anterior unía `compras` y `productos` en el
+-- mismo FROM y sumaba SUM(c.total). Al unir dos tablas independientes contra
+-- la misma fila padre, PostgreSQL devuelve el producto cruzado: un proveedor
+-- con 2 compras y 2 productos generaba 4 filas, y cada compra se sumaba dos
+-- veces. "Total comprado" salía multiplicado por la cantidad de productos.
+-- Los COUNT(DISTINCT ...) sí daban bien y por eso el error pasaba inadvertido.
+--
+-- La solución es no cruzarlas: cada agregado se calcula en su propia
+-- subconsulta y la vista solo pega el resultado al lado del proveedor.
 CREATE OR REPLACE VIEW vw_frontend_proveedores AS
 SELECT
     p.id_proveedor AS id,
@@ -541,14 +555,21 @@ SELECT
     p.cantidad_resenas AS reviews,
     CASE WHEN p.estado THEN 'active' ELSE 'inactive' END AS status,
     p.fecha_alta AS since,
-    COUNT(DISTINCT c.id_compra)::INT AS "totalOrders",
-    COALESCE(SUM(c.total), 0)::NUMERIC(12,2) AS "totalSpent",
-    COUNT(DISTINCT pr.id_producto)::INT AS "totalProducts"
+    compra."totalOrders",
+    compra."totalSpent",
+    prod."totalProducts"
 FROM proveedores p
-LEFT JOIN compras c ON c.id_proveedor = p.id_proveedor
-LEFT JOIN productos pr ON pr.id_proveedor = p.id_proveedor
-GROUP BY p.id_proveedor, p.nombre, p.contacto, p.email, p.telefono,
-         p.ciudad, p.calificacion, p.cantidad_resenas, p.estado, p.fecha_alta;
+LEFT JOIN LATERAL (
+    SELECT COUNT(*)::INT AS "totalOrders",
+           COALESCE(SUM(c.total), 0)::NUMERIC(12,2) AS "totalSpent"
+      FROM compras c
+     WHERE c.id_proveedor = p.id_proveedor
+) compra ON TRUE
+LEFT JOIN LATERAL (
+    SELECT COUNT(*)::INT AS "totalProducts"
+      FROM productos pr
+     WHERE pr.id_proveedor = p.id_proveedor
+) prod ON TRUE;
 
 CREATE OR REPLACE VIEW vw_frontend_productos AS
 SELECT
@@ -611,7 +632,12 @@ SELECT
     r.id_rol AS id,
     r.nombre AS name,
     r.descripcion AS description,
-    COALESCE(array_agg(rp.id_permiso) FILTER (WHERE rp.id_permiso IS NOT NULL), '{}') AS permissions,
+    -- El DISTINCT no es adorno. Esta vista une rol_permiso y usuarios, que
+    -- son independientes entre sí, así que un rol con 29 permisos y 2
+    -- usuarios produce 58 filas y array_agg devolvía cada permiso repetido
+    -- una vez por usuario. El usersCount ya venía protegido con DISTINCT;
+    -- la lista de permisos no, y salía inflada.
+    COALESCE(array_agg(DISTINCT rp.id_permiso) FILTER (WHERE rp.id_permiso IS NOT NULL), '{}') AS permissions,
     COUNT(DISTINCT u.id_usuario)::INT AS "usersCount",
     CASE WHEN r.estado THEN 'active' ELSE 'inactive' END AS status,
     r.created_at AS "createdAt"
@@ -667,7 +693,23 @@ SELECT
         'unitCost', dc.precio_costo,
         'subtotal', dc.subtotal
     )) FILTER (WHERE dc.id_detalle_compra IS NOT NULL), '[]'::json) AS items,
-    COALESCE((SELECT json_agg(pc.*) FROM pagos_compra pc WHERE pc.id_compra = c.id_compra), '[]'::json) AS payments
+    -- Los abonos, con el método de pago resuelto y las llaves que espera
+    -- React. Antes era json_agg(pc.*), que devolvía las columnas crudas
+    -- (id_metodo_pago, monto, fecha_pago) y obligaba al frontend a traducir
+    -- nombres y a pedir aparte el nombre del método para poder mostrarlo.
+    COALESCE((
+        SELECT json_agg(json_build_object(
+            'id', pc.id_pago,
+            'date', pc.fecha_pago,
+            'amount', pc.monto,
+            'method', mp.nombre,
+            'methodCode', mp.codigo,
+            'reference', pc.referencia
+        ) ORDER BY pc.fecha_pago, pc.id_pago)
+        FROM pagos_compra pc
+        JOIN metodo_pago mp ON mp.id_metodo_pago = pc.id_metodo_pago
+        WHERE pc.id_compra = c.id_compra
+    ), '[]'::json) AS payments
 FROM compras c
 JOIN proveedores p ON p.id_proveedor = c.id_proveedor
 LEFT JOIN detalle_compra dc ON dc.id_compra = c.id_compra

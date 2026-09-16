@@ -119,4 +119,41 @@ async function register({ nombre, correo, contrasena, telefono, rol }) {
   return { token: signToken(creado), user: toSession(creado), id: rows[0].id_usuario };
 }
 
-export { login, register, toSession };
+/**
+ * Cambio de contraseña de la propia cuenta.
+ *
+ * Se exige la contraseña actual a propósito: si alguien deja la sesión
+ * abierta en un equipo compartido, no basta con tener el token para
+ * quedarse con la cuenta.
+ */
+async function changePassword(idUsuario, { actual, nueva, confirmacion }) {
+  if (!actual) throw new HttpError(400, "Debes escribir tu contraseña actual.", { actual: "Campo obligatorio." });
+  if (!nueva || nueva.length < 8) {
+    throw new HttpError(400, "La nueva contraseña debe tener al menos 8 caracteres.", {
+      nueva: "La nueva contraseña debe tener al menos 8 caracteres."
+    });
+  }
+  if (confirmacion !== undefined && confirmacion !== nueva) {
+    throw new HttpError(400, "La confirmación no coincide con la nueva contraseña.", {
+      confirmacion: "Las contraseñas no coinciden."
+    });
+  }
+  if (actual === nueva) {
+    throw new HttpError(400, "La nueva contraseña debe ser distinta de la actual.", {
+      nueva: "Debe ser distinta de la actual."
+    });
+  }
+
+  const { rows } = await query("SELECT contrasena FROM usuarios WHERE id_usuario = $1", [idUsuario]);
+  if (!rows[0]) throw new HttpError(404, "La cuenta ya no existe.");
+
+  const ok = await comparar(actual, rows[0].contrasena);
+  if (!ok) throw new HttpError(401, "La contraseña actual no es correcta.", { actual: "No es correcta." });
+
+  const hash = await bcrypt.hash(nueva, SALT_ROUNDS);
+  await query("UPDATE usuarios SET contrasena = $2 WHERE id_usuario = $1", [idUsuario, hash]);
+
+  return { ok: true, mensaje: "Contraseña actualizada correctamente." };
+}
+
+export { login, register, changePassword, toSession };

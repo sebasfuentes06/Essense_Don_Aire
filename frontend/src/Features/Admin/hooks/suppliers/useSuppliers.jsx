@@ -1,201 +1,339 @@
-import { useState } from "react";
-const mockSuppliers = [
-  {
-    id: 1, name: "Fragancias Premium SA", contact: "Juan Garc\xEDa", email: "juan@fragpremium.com", phone: "+34 91 234 5678", city: "Madrid", products: ["Essence Royale", "Golden Mist", "Ocean Breeze"],
-    rating: 4.8,
-    reviews: 42, status: "active", since: "2022-01-15", totalOrders: 45,
-    totalSpent: 45e3
-  },
-  {
-    id: 2, name: "Perfumes Internacionales", contact: "Mar\xEDa L\xF3pez", email: "maria@perfintl.com", phone: "+34 93 456 7890", city: "Barcelona", products: ["Noir Elegance", "Velvet Rose"],
-    rating: 4.5,
-    reviews: 28, status: "active", since: "2022-06-20", totalOrders: 32,
-    totalSpent: 32e3
-  },
-  {
-    id: 3, name: "Aromas del Mundo", contact: "Carlos Rodr\xEDguez", email: "carlos@aromasmundo.es", phone: "+34 95 678 9012", city: "Sevilla", products: ["Rose Oud", "Lavender Dreams", "Citrus Splash"],
-    rating: 4.3,
-    reviews: 18, status: "active", since: "2023-03-10", totalOrders: 22,
-    totalSpent: 18500
-  }
-];
+import { useCallback, useEffect, useState } from "react";
+import { api, ApiError } from "../../../../shared/api";
+
+/**
+ * Proveedores, ya contra la API.
+ *
+ * Tres cambios de fondo respecto a la versión anterior:
+ *
+ * 1. Los datos vienen de PostgreSQL, no de una lista escrita en este archivo.
+ *
+ * 2. Filtrar, ordenar y paginar lo hace la base, no el navegador. Con tres
+ *    proveedores da lo mismo; con tres mil es la diferencia entre una tabla
+ *    instantánea y uno que descarga todo para mostrar diez filas.
+ *
+ * 3. Las validaciones dejaron de ser alert(). Ahora el servidor responde qué
+ *    campo está mal y el formulario lo pinta debajo del campo.
+ */
+
 const sortOptions = [
   { value: "name", label: "Nombre" },
-  { value: "totalSpent", label: "Total Gastado" },
-  { value: "totalOrders", label: "N\xFAmero \xD3rdenes" },
-  { value: "rating", label: "Calificaci\xF3n" }
+  { value: "city", label: "Ciudad" },
+  { value: "totalSpent", label: "Total comprado" },
+  { value: "totalOrders", label: "N° de órdenes" },
+  { value: "totalProducts", label: "N° de productos" },
+  { value: "rating", label: "Calificación" },
+  { value: "since", label: "Antigüedad" }
 ];
+
+const emptyStats = {
+  total: 0,
+  activos: 0,
+  inactivos: 0,
+  calificacionPromedio: 0,
+  totalProductos: 0
+};
+
+const emptyForm = {
+  nombre: "",
+  contacto: "",
+  email: "",
+  telefono: "",
+  ciudad: "",
+  calificacion: "",
+  resenas: "",
+  estado: true,
+  // Alias en inglés: los componentes heredados leen estos nombres.
+  name: "",
+  contact: "",
+  phone: "",
+  city: "",
+  status: "active"
+};
+
+/** Un proveedor de la API, traducido a los campos que llena el formulario. */
+function aFormulario(proveedor) {
+  return {
+    nombre: proveedor.name ?? "",
+    contacto: proveedor.contact ?? "",
+    email: proveedor.email ?? "",
+    telefono: proveedor.phone ?? "",
+    ciudad: proveedor.city ?? "",
+    calificacion: proveedor.rating ?? "",
+    resenas: proveedor.reviews ?? "",
+    estado: proveedor.status === "active",
+    name: proveedor.name ?? "",
+    contact: proveedor.contact ?? "",
+    phone: proveedor.phone ?? "",
+    city: proveedor.city ?? "",
+    status: proveedor.status ?? "active"
+  };
+}
+
 function useSuppliers() {
-  const [suppliers, setSuppliers] = useState(mockSuppliers);
+  const [suppliers, setSuppliers] = useState([]);
+  const [exportRows, setExportRows] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [stats, setStats] = useState(emptyStats);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [formErrors, setFormErrors] = useState({});
+
+  // searchQuery es lo que se ve escrito; searchTerm es lo que se le manda a
+  // la API. Separarlos permite esperar a que la persona deje de escribir: sin
+  // eso, "Fragancias" dispara diez peticiones, una por letra.
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [cityFilter, setCityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [supplierForm, setSupplierForm] = useState({ nombre: "", contacto: "", email: "", telefono: "", ciudad: "", estado: true, name: "", contact: "", phone: "", city: "", status: "active" });
+  const [supplierForm, setSupplierForm] = useState(emptyForm);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState(null);
-  const [detailSupplier, setDetailSupplier] = useState(null);
-  const filteredSuppliers = suppliers.filter((supplier) => {
-    const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) || supplier.city.toLowerCase().includes(searchQuery.toLowerCase()) || supplier.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || supplier.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-  const sortedSuppliers = [...filteredSuppliers].sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
-    if (typeof aValue === "string") {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [supplierToView, setSupplierToView] = useState(null);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearchTerm(searchQuery);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
+
+  const filtros = {
+    search: searchTerm,
+    status: statusFilter,
+    city: cityFilter === "all" ? "" : cityFilter,
+    sortBy,
+    sortDir: sortDirection
+  };
+
+  const fetchSuppliers = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      const { data, stats: resumen, meta } = await api.get("/proveedores", {
+        search: searchTerm,
+        status: statusFilter,
+        city: cityFilter === "all" ? "" : cityFilter,
+        sortBy,
+        sortDir: sortDirection,
+        page: currentPage,
+        limit: itemsPerPage
+      });
+      setSuppliers(data ?? []);
+      setStats(resumen ?? emptyStats);
+      setTotalItems(meta?.total ?? 0);
+      setTotalPages(meta?.totalPages ?? 1);
+    } catch (error) {
+      setSuppliers([]);
+      setTotalItems(0);
+      setLoadError(
+        error instanceof ApiError ? error.message : "No se pudieron cargar los proveedores."
+      );
+    } finally {
+      setIsLoading(false);
     }
-    if (sortDirection === "asc") {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, cityFilter, sortBy, sortDirection, currentPage, itemsPerPage]);
+
+  /**
+   * Las filas para el CSV.
+   *
+   * El botón exporta lo que se está viendo filtrado, pero ahora la tabla solo
+   * tiene en memoria la página actual: si se le pasara eso, "Exportar" se
+   * llevaría diez filas de cincuenta sin avisar. Por eso se piden aparte, sin
+   * paginar. El tope de la API son 100 por petición; si algún día hay más
+   * proveedores que eso habrá que exportar desde el servidor.
+   */
+  const fetchExportRows = useCallback(async () => {
+    try {
+      const { data } = await api.get("/proveedores", { ...filtros, page: 1, limit: 100 });
+      setExportRows(data ?? []);
+    } catch {
+      // Que falle la exportación no debe romper la pantalla: el botón
+      // simplemente queda deshabilitado por no tener filas.
+      setExportRows([]);
     }
-  });
-  const totalPages = Math.ceil(sortedSuppliers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedSuppliers = sortedSuppliers.slice(startIndex, startIndex + itemsPerPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, cityFilter, sortBy, sortDirection]);
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, [fetchSuppliers]);
+
+  useEffect(() => {
+    fetchExportRows();
+  }, [fetchExportRows]);
+
+  /** Las ciudades que hay en uso, para el desplegable del filtro. */
+  const fetchCities = useCallback(async () => {
+    try {
+      const { ciudades } = await api.get("/proveedores/ciudades");
+      setCities(ciudades ?? []);
+    } catch {
+      setCities([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCities();
+  }, [fetchCities]);
+
+  const resetPage = () => setCurrentPage(1);
+  const handleSearchChange = (value) => setSearchQuery(value);
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value);
+    resetPage();
+  };
+  const handleCityFilterChange = (value) => {
+    setCityFilter(value);
+    resetPage();
+  };
+
+  /**
+   * Envuelve una escritura: refresca la lista si salió bien y, si no, deja a
+   * la vista el motivo que dio el servidor. Los resguardos de este módulo
+   * responden con explicaciones concretas —"tiene 3 producto(s) en catálogo y
+   * 2 compra(s) registradas"— y eso es justo lo que hay que mostrar, no un
+   * "error al guardar" genérico.
+   */
+  const run = async (accion) => {
+    setActionError("");
+    try {
+      await accion();
+      await fetchSuppliers();
+      await fetchExportRows();
+      await fetchCities();
+      return true;
+    } catch (error) {
+      setActionError(
+        error instanceof ApiError ? error.message : "No se pudo completar la operación."
+      );
+      if (error?.details) setFormErrors(error.details);
+      return false;
+    }
+  };
+
+  const handleToggleStatus = (supplier) =>
+    run(() =>
+      api.patch(`/proveedores/${supplier.id}/estado`, { estado: supplier.status !== "active" })
+    );
+
   const handleDelete = (supplier) => {
+    setActionError("");
     setSupplierToDelete(supplier);
     setDeleteDialogOpen(true);
   };
-  const confirmDelete = () => {
-    if (supplierToDelete) {
-      setSuppliers(suppliers.filter((s) => s.id !== supplierToDelete.id));
+
+  const confirmDelete = async () => {
+    if (!supplierToDelete) return;
+    const ok = await run(() => api.delete(`/proveedores/${supplierToDelete.id}`));
+    if (ok) {
       setDeleteDialogOpen(false);
       setSupplierToDelete(null);
     }
+    // Si falló, el diálogo se queda abierto con el motivo a la vista: casi
+    // siempre es que el proveedor tiene productos o compras, y conviene leerlo.
   };
-  const handleEdit = (supplier) => {
-    setSelectedSupplier(supplier);
-    setSupplierForm({
-      nombre: supplier.nombre ?? supplier.name ?? "",
-      contacto: supplier.contacto ?? supplier.contact ?? "",
-      email: supplier.email ?? "",
-      telefono: supplier.telefono ?? supplier.phone ?? "",
-      ciudad: supplier.ciudad ?? supplier.city ?? "",
-      estado: supplier.estado ?? supplier.status ?? true,
-      name: supplier.name ?? supplier.nombre ?? "",
-      contact: supplier.contact ?? supplier.contacto ?? "",
-      phone: supplier.phone ?? supplier.telefono ?? "",
-      city: supplier.city ?? supplier.ciudad ?? "",
-      status: supplier.status ?? supplier.estado ?? "active"
-    });
-    setIsModalOpen(true);
-  };
-  const handleView = (supplier) => {
-    setSelectedSupplier(supplier);
-    setSupplierForm({
-      nombre: supplier.nombre ?? supplier.name ?? "",
-      contacto: supplier.contacto ?? supplier.contact ?? "",
-      email: supplier.email ?? "",
-      telefono: supplier.telefono ?? supplier.phone ?? "",
-      ciudad: supplier.ciudad ?? supplier.city ?? "",
-      estado: supplier.estado ?? supplier.status ?? true,
-      name: supplier.name ?? supplier.nombre ?? "",
-      contact: supplier.contact ?? supplier.contacto ?? "",
-      phone: supplier.phone ?? supplier.telefono ?? "",
-      city: supplier.city ?? supplier.ciudad ?? "",
-      status: supplier.status ?? supplier.estado ?? "active"
-    });
-    setIsModalOpen(true);
-  };
-  const handleNewSupplier = () => {
-    setSelectedSupplier(null);
-    setSupplierForm({ nombre: "", contacto: "", email: "", telefono: "", ciudad: "", estado: true, name: "", contact: "", phone: "", city: "", status: "active" });
-    setIsModalOpen(true);
-  };
-  const handleSaveSupplier = () => {
-    const nombre = supplierForm.nombre ?? supplierForm.name ?? "";
-    const contacto = supplierForm.contacto ?? supplierForm.contact ?? "";
-    const email = supplierForm.email ?? "";
-    const telefono = supplierForm.telefono ?? supplierForm.phone ?? "";
 
-    if (!String(nombre).trim()) {
-      alert("Debe indicar el nombre del proveedor.");
-      return;
-    }
-    if (!String(contacto).trim()) {
-      alert("Debe indicar el nombre del contacto.");
-      return;
-    }
-    if (String(email).trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
-      alert("El correo electrónico no es válido.");
-      return;
-    }
-    if (String(telefono).trim() && !/^[+()\d\s-]{7,}$/.test(String(telefono).trim())) {
-      alert("El teléfono no es válido.");
-      return;
-    }
-
-    const payload = {
-      nombre,
-      contacto,
-      email,
-      telefono,
-      ciudad: supplierForm.ciudad ?? supplierForm.city ?? "",
-      estado: supplierForm.estado ?? supplierForm.status ?? true,
-      name: supplierForm.name ?? supplierForm.nombre ?? "",
-      contact: supplierForm.contact ?? supplierForm.contacto ?? "",
-      phone: supplierForm.phone ?? supplierForm.telefono ?? "",
-      city: supplierForm.city ?? supplierForm.ciudad ?? "",
-      status: supplierForm.status ?? supplierForm.estado ?? "active"
-    };
-
-    if (selectedSupplier) {
-      setSuppliers(suppliers.map(
-        (supplier) => supplier.id === selectedSupplier.id ? { ...supplier, ...payload } : supplier
-      ));
-    } else {
-      const nextId = Math.max(0, ...suppliers.map((supplier) => supplier.id)) + 1;
-      setSuppliers([...suppliers, {
-        id: nextId,
-        products: [],
-        totalOrders: 0,
-        totalSpent: 0,
-        rating: 0,
-        reviews: 0,
-        since: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
-        ...payload
-      }]);
-    }
-    setIsModalOpen(false);
-    setSelectedSupplier(null);
-  };
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedSupplier(null);
-  };
   const handleCloseDeleteDialog = () => {
     setDeleteDialogOpen(false);
     setSupplierToDelete(null);
+    setActionError("");
   };
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
+
+  const handleEdit = (supplier) => {
+    setSelectedSupplier(supplier);
+    setSupplierForm(aFormulario(supplier));
+    setFormErrors({});
+    setActionError("");
+    setIsModalOpen(true);
   };
-  const handleStatusFilterChange = (value) => {
-    setStatusFilter(value);
-    setCurrentPage(1);
+
+  /**
+   * Ver ya no abre el formulario de edición.
+   *
+   * Antes "ver" y "editar" llevaban al mismo modal, así que quien solo tenía
+   * permiso de lectura terminaba frente a campos que podía escribir y a un
+   * botón Guardar que el servidor iba a rechazar con un 403. Ahora hay una
+   * ficha de solo lectura, y además muestra las tres cifras calculadas
+   * (órdenes, total comprado, productos) que en el formulario no cabían.
+   */
+  const handleView = (supplier) => {
+    setSupplierToView(supplier);
+    setDetailModalOpen(true);
   };
-  const handleToggleStatus = (supplier) => {
-    setSuppliers(suppliers.map(
-      (item) => item.id === supplier.id ? { ...item, status: item.status === "active" ? "inactive" : "active" } : item
-    ));
+
+  const closeDetailModal = () => {
+    setDetailModalOpen(false);
+    setSupplierToView(null);
   };
-  const totalSuppliers = suppliers.length;
-  const activeSuppliers = suppliers.filter((s) => s.status === "active").length;
-  const totalProducts = suppliers.reduce((sum, s) => sum + s.products.length, 0);
-  const avgRating = (suppliers.reduce((sum, s) => sum + s.rating, 0) / suppliers.length).toFixed(1);
+
+  const handleNewSupplier = () => {
+    setSelectedSupplier(null);
+    setSupplierForm(emptyForm);
+    setFormErrors({});
+    setActionError("");
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedSupplier(null);
+    setSupplierForm(emptyForm);
+    setFormErrors({});
+    setActionError("");
+  };
+
+  const handleSaveSupplier = async () => {
+    setFormErrors({});
+    const payload = {
+      nombre: supplierForm.nombre ?? supplierForm.name ?? "",
+      contacto: supplierForm.contacto ?? supplierForm.contact ?? "",
+      email: supplierForm.email ?? "",
+      telefono: supplierForm.telefono ?? supplierForm.phone ?? "",
+      ciudad: supplierForm.ciudad ?? supplierForm.city ?? "",
+      calificacion: supplierForm.calificacion,
+      resenas: supplierForm.resenas,
+      estado: supplierForm.estado ?? supplierForm.status === "active"
+    };
+
+    const ok = await run(() =>
+      selectedSupplier
+        ? api.put(`/proveedores/${selectedSupplier.id}`, payload)
+        : api.post("/proveedores", payload)
+    );
+
+    if (ok) handleCloseModal();
+  };
+
+  // Mismos nombres de siempre: la página y la tabla ya trabajan con ellos.
+  const paginatedSuppliers = suppliers;
+  const sortedSuppliers = suppliers;
+  const filteredSuppliers = suppliers;
+
   return {
-    // raw state
     suppliers,
-    setSuppliers,
+    exportRows,
+    cities,
+    isLoading,
+    loadError,
+    actionError,
+    formErrors,
+    stats,
+    totalItems,
     searchQuery,
     setSearchQuery,
     currentPage,
@@ -208,44 +346,42 @@ function useSuppliers() {
     setSortDirection,
     statusFilter,
     setStatusFilter,
+    cityFilter,
+    setCityFilter,
     isModalOpen,
-    setIsModalOpen,
     selectedSupplier,
-    setSelectedSupplier,
     supplierForm,
     setSupplierForm,
     deleteDialogOpen,
-    setDeleteDialogOpen,
     supplierToDelete,
-    setSupplierToDelete,
-    detailSupplier,
-    setDetailSupplier,
-    // static options
+    detailModalOpen,
+    supplierToView,
     sortOptions,
-    // derived data
     filteredSuppliers,
     sortedSuppliers,
-    totalPages,
-    startIndex,
     paginatedSuppliers,
-    totalSuppliers,
-    activeSuppliers,
-    totalProducts,
-    avgRating,
-    // handlers
+    totalPages,
+    // Indicadores: salen del servidor y cuentan TODOS los proveedores, no
+    // solo los de la página que se está viendo.
+    totalSuppliers: stats.total,
+    activeSuppliers: stats.activos,
+    totalProducts: stats.totalProductos,
+    avgRating: Number(stats.calificacionPromedio ?? 0).toFixed(1),
+    refresh: fetchSuppliers,
     handleDelete,
     confirmDelete,
     handleEdit,
     handleView,
+    closeDetailModal,
     handleNewSupplier,
     handleSaveSupplier,
     handleCloseModal,
     handleCloseDeleteDialog,
     handleSearchChange,
     handleStatusFilterChange,
+    handleCityFilterChange,
     handleToggleStatus
   };
 }
-export {
-  useSuppliers
-};
+
+export { useSuppliers, sortOptions };

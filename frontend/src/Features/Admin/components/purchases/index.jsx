@@ -1,16 +1,23 @@
-import { PurchasesHeader } from "./PurchasesHeader";
+import { PurchasesHeader, purchaseColumns } from "./PurchasesHeader";
 import { PurchasesStats } from "./PurchasesStats";
 import { PurchasesFiltersBar } from "./PurchasesFiltersBar";
 import { PurchasesTable } from "./PurchasesTable";
-import { PurchaseDeleteDialog } from "./PurchaseDeleteDialog";
 import { PurchaseDetailModal } from "./PurchaseDetailModal";
 import { PurchaseFormModal } from "./PurchaseFormModal";
+import { PurchasePaymentModal } from "./PurchasePaymentModal";
+
+/**
+ * PurchaseDeleteDialog ya no se exporta: envolvía al DeleteDialog compartido
+ * sin agregarle nada, y ahora la página necesita dos diálogos distintos
+ * —cancelar y eliminar— con textos propios, así que los arma directamente.
+ */
 export {
-  PurchaseDeleteDialog,
   PurchaseDetailModal,
   PurchaseFormModal,
+  PurchasePaymentModal,
   PurchasesFiltersBar,
   PurchasesHeader,
   PurchasesStats,
-  PurchasesTable
+  PurchasesTable,
+  purchaseColumns
 };

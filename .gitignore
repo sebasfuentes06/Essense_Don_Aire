@@ -1,10 +1,26 @@
+# Dependencias: se reinstalan con npm install, no se versionan.
 node_modules/
 frontend/node_modules/
+
+# Resultados de construcción.
 .vite/
 dist/
 build/
+coverage/
+
+# Secretos. El .env real NUNCA se sube: lleva la contraseña de PostgreSQL y
+# la clave que firma las sesiones. El .env.example sí, porque es la plantilla
+# vacía que necesita cualquiera que clone el repositorio para saber qué
+# variables hay que definir.
 .env
 .env.*
+!.env.example
+
+# Ruido del sistema y de las herramientas.
 .DS_Store
 *.log
-coverage/
+
+# La aplicación de escritorio de Claude guarda aquí una copia de cada archivo
+# que llega al chat (capturas, documentos). No son parte del proyecto y
+# reaparece sola cada vez, así que se ignora en vez de borrarla una y otra vez.
+Claude outputs/

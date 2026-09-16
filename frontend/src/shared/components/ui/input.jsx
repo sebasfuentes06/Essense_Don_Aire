@@ -2,8 +2,16 @@ import * as React from "react";
 import { cn } from "./utils";
 
 function Input({ className, type, label, id, error, wrapperClassName, required, onKeyDown, onPaste, ...props }) {
-  const inputId = id || props.name || undefined;
+  // Sin id ni name, el htmlFor de la etiqueta quedaba en undefined y la
+  // etiqueta no apuntaba a nada: un lector de pantalla anunciaba el campo sin
+  // nombre y hacer clic en "Ciudad" no llevaba el cursor al recuadro. useId
+  // genera uno estable y único por campo cuando no viene dado.
+  const generatedId = React.useId();
+  const inputId = id || props.name || generatedId;
   const isNumericInput = type === "number" || props.inputMode === "numeric" || props.inputMode === "decimal";
+  // El error solo se pinta si es texto: hay formularios que pasan un booleano
+  // únicamente para marcar el campo en rojo.
+  const mensajeError = typeof error === "string" && error.trim() ? error : null;
 
   const handleKeyDown = (event) => {
     if (!isNumericInput) {
@@ -75,10 +83,12 @@ function Input({ className, type, label, id, error, wrapperClassName, required, 
         className={cn(
           "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
           "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+          error && "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/40",
           className
         )}
         {...props}
       />
+      {mensajeError && <p className="text-xs font-medium text-destructive">{mensajeError}</p>}
     </div>
   );
 }

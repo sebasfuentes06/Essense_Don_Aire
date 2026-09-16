@@ -6,16 +6,40 @@ import { env } from "../config/env.js";
  *
  * Todas las consultas van parametrizadas ($1, $2, ...). Nunca se concatena
  * un valor del usuario dentro del SQL: esa es la defensa contra inyección.
+ *
+ * Sobre el tamaño del pool: en Vercel la API corre como función, y puede
+ * haber varias instancias vivas al mismo tiempo. Si cada una abriera diez
+ * conexiones, un plan gratuito de PostgreSQL se queda sin cupo enseguida
+ * ("too many connections"). Por eso allá se abren pocas y se sueltan rápido;
+ * en local se mantiene el pool de siempre.
  */
-const pool = new pg.Pool({
-  host: env.db.host,
-  port: env.db.port,
-  database: env.db.database,
-  user: env.db.user,
-  password: env.db.password,
-  max: 10,
-  idleTimeoutMillis: 30000
-});
+function crearPool() {
+  const comun = {
+    ssl: env.db.ssl,
+    max: env.esServerless ? 2 : 10,
+    idleTimeoutMillis: env.esServerless ? 10000 : 30000,
+    connectionTimeoutMillis: 10000
+  };
+
+  return env.db.connectionString
+    ? new pg.Pool({ connectionString: env.db.connectionString, ...comun })
+    : new pg.Pool({
+        host: env.db.host,
+        port: env.db.port,
+        database: env.db.database,
+        user: env.db.user,
+        password: env.db.password,
+        ...comun
+      });
+}
+
+/**
+ * En serverless el módulo se reevalúa entre invocaciones, pero el proceso
+ * puede seguir vivo. Guardar el pool en globalThis evita crear uno nuevo
+ * (con sus conexiones) en cada petición.
+ */
+const pool = globalThis.__eda_pool ?? crearPool();
+if (env.esServerless) globalThis.__eda_pool = pool;
 
 pool.on("error", (error) => {
   console.error("[db] error inesperado en el pool:", error.message);

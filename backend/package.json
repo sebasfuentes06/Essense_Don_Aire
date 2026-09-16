@@ -4,11 +4,19 @@
   "private": true,
   "type": "module",
   "description": "API REST de Essence Don Aire (Node + Express + PostgreSQL)",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
+    "db:setup": "node scripts/setup-db.js",
     "seed": "node scripts/seed-usuarios.js",
-    "seed:demo": "node scripts/seed-demo.js"
+    "seed:demo": "node scripts/seed-demo.js",
+    "db:sql": "node scripts/aplicar-sql.js",
+    "test:proveedores": "node scripts/probar-proveedores.js",
+    "test:compras": "node scripts/probar-compras.js"
   },
   "dependencies": {
     "bcryptjs": "2.4.3",

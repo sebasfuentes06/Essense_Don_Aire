@@ -1,10 +1,13 @@
-import { LogOut } from "lucide-react";
+import { useState } from "react";
+import { KeyRound, LogOut } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../../../shared/auth";
+import { ChangePasswordModal } from "../../../../shared/auth/ChangePasswordModal";
 
 function UserProfile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [cambiarClave, setCambiarClave] = useState(false);
 
   const name = user?.name ?? "Invitado";
   const email = user?.email ?? "";
@@ -34,6 +37,15 @@ function UserProfile() {
         </div>
         <button
           type="button"
+          onClick={() => setCambiarClave(true)}
+          className="h-9 w-9 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors flex items-center justify-center"
+          title="Cambiar contraseña"
+          aria-label="Cambiar contraseña"
+        >
+          <KeyRound className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
           onClick={handleLogout}
           className="h-9 w-9 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center"
           title="Cerrar sesión"
@@ -42,6 +54,8 @@ function UserProfile() {
           <LogOut className="h-4 w-4" />
         </button>
       </div>
+
+      <ChangePasswordModal isOpen={cambiarClave} onClose={() => setCambiarClave(false)} />
     </div>
   );
 }

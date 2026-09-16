@@ -1,9 +1,22 @@
-import { jsx, jsxs } from "react/jsx-runtime";
 import { Search } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
 import { Select } from "../../../../shared/components/ui/Select";
-import { ItemsPerPageSelect } from "../../../../shared/components/ui/ItemsPerPageSelect";
+import { Input } from "../../../../shared/components/ui/input";
 import { SortSelect } from "../../../../shared/components/ui/SortSelect";
+import { ItemsPerPageSelect } from "../../../../shared/components/ui/ItemsPerPageSelect";
+import { cn } from "../../../../shared/utils/cn";
+
+/**
+ * Filtros de Compras.
+ *
+ * El filtro de proveedor ahora manda el ID, no el nombre. Antes comparaba
+ * `p.supplierName === supplierFilter`, así que dos proveedores con nombres
+ * parecidos —o uno al que le corrigieran una tilde— dejaban de coincidir.
+ *
+ * "Por pagar" no es un estado de la base: agrupa pendientes y parciales. Es
+ * lo que de verdad se quiere ver cuando alguien pregunta qué falta pagarles a
+ * los proveedores, y tenerlo en un clic evita revisar dos filtros.
+ */
 function PurchasesFiltersBar({
   searchQuery,
   onSearchChange,
@@ -11,7 +24,7 @@ function PurchasesFiltersBar({
   onStatusFilterChange,
   supplierFilter,
   onSupplierFilterChange,
-  suppliers,
+  suppliers = [],
   dateFrom,
   onDateFromChange,
   dateTo,
@@ -24,71 +37,81 @@ function PurchasesFiltersBar({
   itemsPerPage,
   onItemsPerPageChange
 }) {
-  return /* @__PURE__ */jsx(Card, {
-    className: "p-4 sm:p-5",
-    children: /* @__PURE__ */jsxs("div", {
-      className: "grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(160px,1fr)_185px_220px_125px_125px_200px_132px] 2xl:items-center",
-      children: [/* @__PURE__ */jsxs("div", {
-        className: "relative min-w-0",
-        children: [/* @__PURE__ */jsx(Search, {
-          className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-        }), /* @__PURE__ */jsx("input", {
-          value: searchQuery,
-          onChange: e => onSearchChange(e.target.value),
-          placeholder: "Buscar compra o proveedor",
-          className: "h-10 w-full rounded-xl border border-input bg-background pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-        })]
-      }), /* @__PURE__ */jsx(Select, {
-        wrapperClassName: "w-full",
-        value: statusFilter,
-        onChange: e => onStatusFilterChange(e.target.value),
-        options: [{
-          value: "all",
-          label: "Todos los estados"
-        }, {
-          value: "pending",
-          label: "Pendientes"
-        }, {
-          value: "partial",
-          label: "Pago parcial"
-        }, {
-          value: "paid",
-          label: "Pagados"
-        }]
-      }), /* @__PURE__ */jsx(Select, {
-        wrapperClassName: "w-full",
-        value: supplierFilter,
-        onChange: e => onSupplierFilterChange(e.target.value),
-        options: [{
-          value: "all",
-          label: "Todos los proveedores"
-        }, ...suppliers.map(s => ({
-          value: s.name,
-          label: s.name
-        }))]
-      }), /* @__PURE__ */jsx("input", {
-        type: "date",
-        value: dateFrom,
-        onChange: e => onDateFromChange(e.target.value),
-        className: "h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-      }), /* @__PURE__ */jsx("input", {
-        type: "date",
-        value: dateTo,
-        onChange: e => onDateToChange(e.target.value),
-        className: "h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-      }), /* @__PURE__ */jsx("div", {
-        children: /* @__PURE__ */jsx(SortSelect, {
-          value: sortBy,
-          onChange: onSortByChange,
-          options: sortOptions,
-          direction: sortDirection,
-          onDirectionChange: onSortDirectionChange
-        })
-      }), /* @__PURE__ */jsx(ItemsPerPageSelect, {
-        value: itemsPerPage,
-        onChange: onItemsPerPageChange
-      })]
-    })
-  });
+  return (
+    <Card className="space-y-3 p-4 sm:p-5">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-3">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <input
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Buscar por folio o proveedor"
+              className={cn(
+                "w-full h-11 pl-11 pr-4 rounded-xl bg-background border border-input",
+                "text-foreground placeholder:text-muted-foreground",
+                "focus:outline-none focus:ring-2 focus:ring-primary"
+              )}
+            />
+          </div>
+
+          <Select
+            wrapperClassName="min-w-[180px] flex-[0_0_180px]"
+            value={statusFilter}
+            onChange={(e) => onStatusFilterChange(e.target.value)}
+            options={[
+              { value: "all", label: "Todos los estados" },
+              { value: "unpaid", label: "Por pagar" },
+              { value: "pending", label: "Pendientes" },
+              { value: "partial", label: "Parciales" },
+              { value: "paid", label: "Pagadas" },
+              { value: "cancelled", label: "Canceladas" }
+            ]}
+          />
+
+          <Select
+            wrapperClassName="min-w-[200px] flex-[0_0_200px]"
+            value={String(supplierFilter)}
+            onChange={(e) => onSupplierFilterChange(e.target.value)}
+            options={[
+              { value: "all", label: "Todos los proveedores" },
+              ...suppliers.map((s) => ({ value: String(s.id), label: s.nombre }))
+            ]}
+          />
+        </div>
+
+        <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
+          <div className="min-w-[220px] flex-1 xl:flex-none">
+            <SortSelect
+              value={sortBy}
+              onChange={onSortByChange}
+              options={sortOptions}
+              direction={sortDirection}
+              onDirectionChange={onSortDirectionChange}
+            />
+          </div>
+          <ItemsPerPageSelect value={itemsPerPage} onChange={onItemsPerPageChange} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:max-w-lg">
+        <Input
+          label="Desde"
+          type="date"
+          value={dateFrom}
+          max={dateTo || undefined}
+          onChange={(e) => onDateFromChange(e.target.value)}
+        />
+        <Input
+          label="Hasta"
+          type="date"
+          value={dateTo}
+          min={dateFrom || undefined}
+          onChange={(e) => onDateToChange(e.target.value)}
+        />
+      </div>
+    </Card>
+  );
 }
+
 export { PurchasesFiltersBar };

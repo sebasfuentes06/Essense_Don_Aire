@@ -8,7 +8,10 @@ function RoleDetailModal({
   roleToView,
   availablePermissions = []
 }) {
-  const moduleOrder = ["Dashboard", "Catálogo", "Productos", "Categorías", "Compras", "Ventas", "Clientes", "Proveedores", "Usuarios", "Roles"];
+  // El orden de los módulos sale del propio catálogo, no de una lista escrita
+  // aquí: antes había diez fijos y la base tiene catorce, así que los permisos
+  // de Pedidos, Pagos y Abonos, Mi cuenta y Sistema no se mostraban nunca.
+  const moduleOrder = [...new Set(availablePermissions.map((permission) => permission.module))];
   const permissionMap = Object.fromEntries(
     availablePermissions.map((permission) => [String(permission.id), permission])
   );
@@ -79,7 +82,12 @@ function RoleDetailModal({
                 groupedPermissions.map((group) => (
                   <section key={group.module} className="overflow-hidden rounded-xl border border-border bg-background/40">
                     <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3 py-2">
-                      <h4 className="text-sm font-semibold text-primary">{group.module}</h4>
+                      <h4 className="text-sm font-semibold text-primary">
+                        {group.module}
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          {group.permissions.length}
+                        </span>
+                      </h4>
                     </div>
 
                     <table className="w-full text-sm">
