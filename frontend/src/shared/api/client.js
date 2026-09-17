@@ -7,7 +7,23 @@
  *  - la traducción de un fallo en un mensaje que la persona entienda.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
+/**
+ * A dónde se mandan las peticiones.
+ *
+ * En producción el frontend y la API viven en el MISMO dominio de Vercel
+ * (/api lo atiende la función de api/index.js), así que basta una ruta
+ * relativa: no hay que configurar ninguna variable, no hay CORS de por medio
+ * y la dirección sigue siendo correcta aunque el proyecto cambie de nombre.
+ *
+ * En desarrollo, en cambio, Vite sirve en el 5173 y la API en el 4000, así
+ * que sí hace falta la dirección completa.
+ *
+ * VITE_API_URL se respeta por encima de todo, por si alguna vez hay que
+ * apuntar a una API distinta sin tocar el código.
+ */
+const BASE_URL =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? "http://localhost:4000/api" : "/api");
 const TOKEN_KEY = "eda_token";
 
 /** Se dispara cuando la API responde 401: lo usa AuthContext para cerrar sesión. */

@@ -39,6 +39,26 @@ function pintar(resultado) {
   console.table(resultado.rows);
 }
 
+/**
+ * A qué base apunta esto, en texto legible y SIN la contraseña.
+ *
+ * Antes decía solo "la base de DATABASE_URL", que suena a confirmación pero no
+ * confirma nada: con la cadena mal pegada imprimía exactamente lo mismo. Hay
+ * que ver el servidor para darse cuenta, así que se muestra.
+ */
+function describirDestino() {
+  if (!env.db.connectionString) {
+    return `${env.db.database} en ${env.db.host}:${env.db.port}`;
+  }
+  try {
+    const url = new URL(env.db.connectionString);
+    const base = url.pathname.replace(/^\//, "") || "(sin nombre)";
+    return `${base} en ${url.hostname}`;
+  } catch {
+    return `NO PARECE UNA CADENA VÁLIDA -> "${env.db.connectionString}"`;
+  }
+}
+
 async function main() {
   const argumento = process.argv[2];
   if (!argumento) {
@@ -72,9 +92,7 @@ async function main() {
     process.exit(1);
   }
 
-  const destino = env.db.connectionString
-    ? "la base de DATABASE_URL"
-    : `${env.db.database} en ${env.db.host}:${env.db.port}`;
+  const destino = describirDestino();
 
   console.log(`\nArchivo: ${ruta}`);
   console.log(`Base:    ${destino}\n`);
