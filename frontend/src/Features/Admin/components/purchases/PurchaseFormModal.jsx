@@ -45,9 +45,8 @@ function PurchaseFormModal({
   const [errorItem, setErrorItem] = useState("");
 
   const items = Array.isArray(purchaseForm.items) ? purchaseForm.items : [];
-  const impuesto = purchaseForm.impuesto === "" ? 0 : Number(purchaseForm.impuesto) || 0;
   const subtotal = items.reduce((suma, i) => suma + Number(i.cantidad) * Number(i.precio_costo), 0);
-  const total = subtotal + impuesto;
+  const total = subtotal;
 
   const cambiar = (cambios) => onFormChange({ ...purchaseForm, ...cambios });
 
@@ -265,32 +264,9 @@ function PurchaseFormModal({
         </div>
 
         {/* ----------------------------------------------------------- */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Input
-            label="Impuesto"
-            type="number"
-            min="0"
-            step="0.01"
-            value={purchaseForm.impuesto ?? ""}
-            error={serverFieldErrors.impuesto}
-            onChange={(e) => cambiar({ impuesto: e.target.value })}
-            placeholder="0"
-          />
-
-          <div className="space-y-1 rounded-xl border border-border bg-muted/20 p-4 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal</span>
-              <span>{plata(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Impuesto</span>
-              <span>{plata(impuesto)}</span>
-            </div>
-            <div className="flex justify-between border-t border-border pt-1 text-base font-semibold text-foreground">
-              <span>Total</span>
-              <span>{plata(total)}</span>
-            </div>
-          </div>
+        <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+          <span className="text-sm text-muted-foreground">Total de la compra</span>
+          <span className="text-lg font-semibold text-foreground">{plata(total)}</span>
         </div>
 
         <p className="rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">

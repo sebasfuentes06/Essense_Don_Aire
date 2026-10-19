@@ -3,7 +3,8 @@
  * reglas que la app móvil y la API (registro y ficha de cliente):
  *
  *   nombre completo*, tipo de documento*, documento*, celular* (solo números),
- *   municipio de Antioquia* (lista consumida de una API), dirección, correo.
+ *   departamento (por defecto Antioquia) y ciudad* (listas de API Colombia),
+ *   dirección y correo.
  */
 
 export const TIPOS_DOCUMENTO = [
@@ -20,6 +21,7 @@ export const PERSONA_VACIA = {
   documentType: "",
   document: "",
   phone: "",
+  department: "Antioquia",
   city: "",
   address: "",
   email: ""
@@ -59,7 +61,8 @@ export function validarPersona(p, { correoObligatorio = false } = {}) {
     documentType: p.documentType ? "" : "Elige el tipo de documento.",
     document: validarDocumento(p.documentType, p.document),
     phone: validarCelular(p.phone),
-    city: p.city ? "" : "Elige el municipio.",
+    department: p.department ? "" : "Elige el departamento.",
+    city: p.city ? "" : "Elige la ciudad o municipio.",
     address: (p.address ?? "").length > 150 ? "Máximo 150 caracteres." : "",
     email: validarCorreo(p.email, { obligatorio: correoObligatorio })
   };
@@ -74,6 +77,7 @@ export function erroresApiAPersona(detalles = {}) {
     documento: "document",
     telefono: "phone",
     ciudad: "city",
+    departamento: "department",
     direccion: "address",
     correo: "email",
     password: "password",
@@ -91,6 +95,7 @@ export function personaAApi(p) {
     tipo_documento: p.documentType,
     documento: p.document.trim(),
     telefono: p.phone.trim(),
+    departamento: p.department || "Antioquia",
     ciudad: p.city,
     direccion: (p.address ?? "").trim(),
     correo: (p.email ?? "").trim()

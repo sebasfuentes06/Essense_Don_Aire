@@ -8,7 +8,7 @@ const statusOptions = [
   { value: "all", label: "Todos los estados" },
   { value: "pending", label: "Pendientes" },
   { value: "confirmed", label: "Confirmados" },
-  { value: "cancelled", label: "Cancelados" }
+  { value: "cancelled", label: "Anulados" }
 ];
 
 const channelOptions = [

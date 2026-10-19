@@ -1,32 +1,16 @@
-import { useEffect, useState } from "react";
 import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/Select";
-import { TIPOS_DOCUMENTO, cargarMunicipios } from "./persona";
+import { TIPOS_DOCUMENTO } from "./persona";
+import { CamposUbicacion } from "./CamposUbicacion";
 
 /**
  * Campos de una persona en el orden que pide la ficha del proyecto:
  * nombre*, tipo de documento*, documento*, celular* (solo números),
- * municipio de Antioquia* (lista de API Colombia), dirección y correo.
+ * departamento (Antioquia por defecto) y ciudad* (API Colombia), dirección y correo.
  *
  * Lo usan el registro y el formulario de clientes (igual que la app móvil).
  */
 function CamposPersona({ valor, onCambio, errores = {}, correoObligatorio = false }) {
-  const [municipios, setMunicipios] = useState(null);
-  const [desdeApi, setDesdeApi] = useState(true);
-
-  useEffect(() => {
-    let vivo = true;
-    cargarMunicipios().then((r) => {
-      if (!vivo) return;
-      // Si la ficha tenía una ciudad que no está en la lista, se conserva.
-      const lista = valor.city && !r.lista.includes(valor.city) ? [valor.city, ...r.lista] : r.lista;
-      setMunicipios(lista);
-      setDesdeApi(r.desdeApi);
-    });
-    return () => { vivo = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const set = (campo) => (e) => onCambio({ ...valor, [campo]: e.target.value });
   const soloNumeros = ["CC", "TI", "NIT", ""].includes(valor.documentType);
 
@@ -80,25 +64,24 @@ function CamposPersona({ valor, onCambio, errores = {}, correoObligatorio = fals
           placeholder="3001234567"
           autoComplete="tel"
         />
-        <div>
-          <Select
-            label="Municipio (Antioquia)"
-            name="city"
-            required
-            value={valor.city}
-            onChange={set("city")}
-            error={errores.city}
-            disabled={!municipios}
-            options={[
-              { value: "", label: municipios ? `Selecciona (${municipios.length})...` : "Cargando municipios..." },
-              ...(municipios ?? []).map((m) => ({ value: m, label: m }))
-            ]}
-          />
-          {municipios && !desdeApi && (
-            <p className="mt-1 text-xs text-muted-foreground">Sin conexión con la API de municipios: se usa la lista guardada.</p>
-          )}
-        </div>
+        <Input
+          label={correoObligatorio ? "Correo" : "Correo (opcional)"}
+          name="email"
+          type="email"
+          required={correoObligatorio}
+          value={valor.email}
+          onChange={set("email")}
+          error={errores.email}
+          placeholder="tucorreo@ejemplo.com"
+          autoComplete="email"
+        />
       </div>
+      <CamposUbicacion
+        departamento={valor.department || "Antioquia"}
+        ciudad={valor.city}
+        errores={{ departamento: errores.department, ciudad: errores.city }}
+        onCambio={({ departamento, ciudad }) => onCambio({ ...valor, department: departamento, city: ciudad })}
+      />
       <Input
         label="Dirección de residencia"
         name="address"
@@ -108,17 +91,7 @@ function CamposPersona({ valor, onCambio, errores = {}, correoObligatorio = fals
         placeholder="Calle 10 # 43-20"
         autoComplete="street-address"
       />
-      <Input
-        label={correoObligatorio ? "Correo" : "Correo (opcional)"}
-        name="email"
-        type="email"
-        required={correoObligatorio}
-        value={valor.email}
-        onChange={set("email")}
-        error={errores.email}
-        placeholder="tucorreo@ejemplo.com"
-        autoComplete="email"
-      />
+
     </div>
   );
 }

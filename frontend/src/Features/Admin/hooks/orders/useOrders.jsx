@@ -122,7 +122,7 @@ function useOrders() {
 
   const confirmCancel = async (motivo) => {
     const o = await store.cancelOrder(cancellingOrder.id, motivo);
-    toast.success(`Pedido ${o.folio} cancelado.`);
+    toast.success(`Pedido ${o.folio} anulado.`);
     if (detailOrder?.id === o.id) setDetailOrder(o);
   };
 

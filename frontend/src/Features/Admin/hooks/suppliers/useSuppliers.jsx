@@ -35,6 +35,10 @@ const emptyStats = {
 };
 
 const emptyForm = {
+  tipo_persona: "",
+  tipo_documento: "",
+  documento: "",
+  departamento: "Antioquia",
   nombre: "",
   contacto: "",
   email: "",
@@ -54,6 +58,10 @@ const emptyForm = {
 /** Un proveedor de la API, traducido a los campos que llena el formulario. */
 function aFormulario(proveedor) {
   return {
+    tipo_persona: proveedor.personType ?? "",
+    tipo_documento: proveedor.documentType ?? "",
+    documento: proveedor.document ?? "",
+    departamento: proveedor.department ?? "",
     nombre: proveedor.name ?? "",
     contacto: proveedor.contact ?? "",
     email: proveedor.email ?? "",
@@ -74,6 +82,10 @@ function aFormulario(proveedor) {
 function aProveedor(p) {
   return {
     id: p.id_proveedor,
+    personType: p.tipo_persona ?? "",
+    documentType: p.tipo_documento ?? "",
+    document: p.documento ?? "",
+    department: p.departamento ?? "",
     name: p.nombre,
     contact: p.contacto ?? "",
     email: p.email ?? "",
@@ -157,7 +169,7 @@ function useSuppliers() {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (cityFilter !== "all" && p.city !== cityFilter) return false;
       if (!q) return true;
-      return [p.name, p.contact, p.email, p.city].some((v) => String(v ?? "").toLowerCase().includes(q));
+      return [p.name, p.contact, p.email, p.city, p.document, p.department].some((v) => String(v ?? "").toLowerCase().includes(q));
     });
     const dir = sortDirection === "desc" ? -1 : 1;
     filtrados.sort((a, b) => {
@@ -289,13 +301,16 @@ function useSuppliers() {
   const handleSaveSupplier = async () => {
     setFormErrors({});
     const payload = {
+      tipo_persona: supplierForm.tipo_persona,
+      tipo_documento: supplierForm.tipo_documento,
+      documento: String(supplierForm.documento ?? "").trim(),
+      departamento: supplierForm.departamento,
       nombre: supplierForm.nombre ?? supplierForm.name ?? "",
       contacto: supplierForm.contacto ?? supplierForm.contact ?? "",
       email: supplierForm.email ?? "",
       telefono: supplierForm.telefono ?? supplierForm.phone ?? "",
       ciudad: supplierForm.ciudad ?? supplierForm.city ?? "",
       ...(supplierForm.calificacion !== "" && supplierForm.calificacion != null && { calificacion: Number(supplierForm.calificacion) }),
-      ...(supplierForm.resenas !== "" && supplierForm.resenas != null && { cantidad_resenas: Number(supplierForm.resenas) }),
       estado: supplierForm.estado ?? supplierForm.status === "active"
     };
 

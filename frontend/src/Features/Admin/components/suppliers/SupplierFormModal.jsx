@@ -4,59 +4,56 @@ import { Button } from "../../../../shared/components/ui/button";
 import { Modal } from "../../../../shared/components/ui/Modal";
 import { Input } from "../../../../shared/components/ui/input";
 import { Select } from "../../../../shared/components/ui/Select";
-import { FormValidationDialog } from "../../../../shared/components/ui/FormValidationDialog";
-import { validateSupplierForm } from "../../validations/formValidation";
+import { CamposUbicacion } from "../../../../shared/persona";
+import { emailPattern, phonePattern, isBlank } from "../../validations/formValidation";
+
+/** Tipos de documento según el tipo de persona. */
+const DOCUMENTOS = {
+  natural: [
+    { value: "CC", label: "CC · Cédula de ciudadanía" },
+    { value: "CE", label: "CE · Cédula de extranjería" },
+    { value: "PPT", label: "PPT · Permiso por protección temporal" },
+    { value: "PAS", label: "PAS · Pasaporte" }
+  ],
+  juridica: [{ value: "NIT", label: "NIT" }]
+};
+
+function validar(f) {
+  const e = {};
+  if (!f.tipo_persona) e.tipo_persona = "Elige el tipo de persona.";
+  if (!f.tipo_documento) e.tipo_documento = "Elige el tipo de documento.";
+  const doc = String(f.documento ?? "").trim();
+  if (!doc) e.documento = "El número de documento es obligatorio.";
+  else if (f.tipo_documento === "NIT" && !/^\d{6,12}(-\d)?$/.test(doc)) e.documento = "NIT: solo números y el dígito de verificación (900123456-7).";
+  else if (f.tipo_documento === "CC" && !/^\d{5,11}$/.test(doc)) e.documento = "Solo números, entre 5 y 11 dígitos.";
+  if (isBlank(f.nombre)) e.nombre = f.tipo_persona === "juridica" ? "La razón social es obligatoria." : "El nombre es obligatorio.";
+  if (isBlank(f.contacto)) e.contacto = "El contacto es obligatorio.";
+  if (!isBlank(f.email) && !emailPattern.test(String(f.email).trim())) e.email = "El correo no tiene un formato válido.";
+  if (!isBlank(f.telefono) && !phonePattern.test(String(f.telefono).trim())) e.telefono = "El teléfono no tiene un formato válido.";
+  if (isBlank(f.departamento)) e.departamento = "Elige el departamento.";
+  if (isBlank(f.ciudad)) e.ciudad = "Elige la ciudad.";
+  const cal = f.calificacion;
+  if (cal !== "" && cal != null && !(Number(cal) >= 0 && Number(cal) <= 5)) e.calificacion = "Entre 0 y 5.";
+  return e;
+}
 
 /**
- * Formulario de un proveedor.
- *
- * Los errores llegan de dos lados y los dos se muestran:
- *  - `validateSupplierForm` revisa lo obvio sin ir al servidor (campos vacíos,
- *    formato del correo) para responder mientras se escribe;
- *  - `serverFieldErrors` trae lo que solo la base puede saber, como que ya
- *    existe otro proveedor con ese nombre.
- *
- * La validación del navegador es comodidad; la que de verdad protege los
- * datos es la de la API, porque a la API se le puede pegar desde Postman sin
- * pasar nunca por esta pantalla.
+ * Formulario de un proveedor: tipo de persona y documento, datos de contacto
+ * y ubicación (departamento y ciudad desde API Colombia).
  */
-function SupplierFormModal({
-  isOpen,
-  onClose,
-  isEditing,
-  supplierForm,
-  onFormChange,
-  serverError = "",
-  serverFieldErrors = {},
-  onSave
-}) {
-  const [validationOpen, setValidationOpen] = useState(false);
+function SupplierFormModal({ isOpen, onClose, isEditing, supplierForm, onFormChange, serverError = "", serverFieldErrors = {}, onSave }) {
+  const [intentado, setIntentado] = useState(false);
   const [guardando, setGuardando] = useState(false);
-
-  const nombre = supplierForm.nombre ?? supplierForm.name ?? "";
-  const contacto = supplierForm.contacto ?? supplierForm.contact ?? "";
-  const email = supplierForm.email ?? "";
-  const telefono = supplierForm.telefono ?? supplierForm.phone ?? "";
-  const ciudad = supplierForm.ciudad ?? supplierForm.city ?? "";
-  const calificacion = supplierForm.calificacion ?? "";
-  const resenas = supplierForm.resenas ?? "";
-
-  const estadoValue = supplierForm.estado ?? supplierForm.status ?? true;
-  const estadoSelect =
-    estadoValue === true || estadoValue === "true" || estadoValue === "active" ? "active" : "inactive";
-
-  const locales = validateSupplierForm({ nombre, contacto, email, telefono, ciudad });
-  const errors = { ...locales, ...(serverFieldErrors ?? {}) };
-  const validate = () => Object.values(locales)[0] || "";
-
-  const cambiar = (cambios) => onFormChange({ ...supplierForm, ...cambios });
+  const f = supplierForm;
+  const set = (cambios) => onFormChange({ ...f, ...cambios });
+  const locales = validar(f);
+  const errors = { ...(intentado ? locales : {}), ...(serverFieldErrors ?? {}) };
+  const juridica = f.tipo_persona === "juridica";
+  const docNumerico = ["CC", "NIT"].includes(f.tipo_documento);
 
   const guardar = async () => {
-    const error = validate();
-    if (error) {
-      setValidationOpen(true);
-      return;
-    }
+    setIntentado(true);
+    if (Object.keys(locales).length) return;
     setGuardando(true);
     try {
       await onSave();
@@ -65,129 +62,120 @@ function SupplierFormModal({
     }
   };
 
+  const cerrar = () => {
+    setIntentado(false);
+    onClose();
+  };
+
   return (
-    <div>
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        size="xl"
-        title={isEditing ? "Editar Proveedor" : "Nuevo Proveedor"}
-      >
-        <div className="space-y-6">
-          {serverError && (
-            <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{serverError}</span>
-            </div>
-          )}
+    <Modal isOpen={isOpen} onClose={cerrar} size="lg" title={isEditing ? "Editar proveedor" : "Nuevo proveedor"}>
+      <div className="space-y-4">
+        {serverError && (
+          <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{serverError}</span>
+          </div>
+        )}
 
-          <Input
-            label="Nombre del proveedor"
-            value={nombre}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Select
+            label="Tipo de persona"
             required
+            value={f.tipo_persona ?? ""}
+            error={errors.tipo_persona}
+            onChange={(e) => {
+              const tipo = e.target.value;
+              set({ tipo_persona: tipo, tipo_documento: tipo === "juridica" ? "NIT" : tipo === "natural" ? "CC" : "" });
+            }}
+            options={[
+              { value: "", label: "Selecciona..." },
+              { value: "natural", label: "Persona natural" },
+              { value: "juridica", label: "Persona jurídica" }
+            ]}
+          />
+          <Select
+            label="Tipo de documento"
+            required
+            value={f.tipo_documento ?? ""}
+            disabled={!f.tipo_persona}
+            error={errors.tipo_documento}
+            onChange={(e) => set({ tipo_documento: e.target.value })}
+            options={[{ value: "", label: f.tipo_persona ? "Selecciona..." : "Elige el tipo de persona" }, ...(DOCUMENTOS[f.tipo_persona] ?? [])]}
+          />
+          <Input
+            label="Número de documento"
+            required
+            value={f.documento ?? ""}
+            error={errors.documento}
+            inputMode={docNumerico ? "numeric" : "text"}
+            placeholder={f.tipo_documento === "NIT" ? "900123456-7" : ""}
+            onChange={(e) =>
+              set({ documento: (f.tipo_documento === "NIT" ? e.target.value.replace(/[^\d-]/g, "") : docNumerico ? e.target.value.replace(/\D/g, "") : e.target.value).slice(0, 20) })
+            }
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label={juridica ? "Razón social" : "Nombre del proveedor"}
+            required
+            value={f.nombre ?? ""}
             error={errors.nombre}
-            onChange={(e) => cambiar({ nombre: e.target.value, name: e.target.value })}
-            placeholder="Razón social del proveedor"
+            onChange={(e) => set({ nombre: e.target.value, name: e.target.value })}
+            maxLength={100}
           />
-
           <Input
-            label="Contacto"
-            value={contacto}
+            label="Persona de contacto"
             required
+            value={f.contacto ?? ""}
             error={errors.contacto}
-            onChange={(e) => cambiar({ contacto: e.target.value, contact: e.target.value })}
-            placeholder="Persona con quien se habla"
+            onChange={(e) => set({ contacto: e.target.value, contact: e.target.value })}
+            maxLength={100}
           />
+          <Input label="Correo electrónico" type="email" value={f.email ?? ""} error={errors.email} onChange={(e) => set({ email: e.target.value })} placeholder="ventas@proveedor.com" />
+          <Input label="Teléfono" value={f.telefono ?? ""} error={errors.telefono} onChange={(e) => set({ telefono: e.target.value, phone: e.target.value })} placeholder="3001234567" />
+        </div>
 
+        <CamposUbicacion
+          departamento={f.departamento ?? ""}
+          ciudad={f.ciudad ?? ""}
+          errores={{ departamento: errors.departamento, ciudad: errors.ciudad }}
+          onCambio={({ departamento, ciudad }) => set({ departamento, ciudad, city: ciudad })}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
           <Input
-            label="Correo electrónico"
-            type="email"
-            value={email}
-            error={errors.email}
-            onChange={(e) => cambiar({ email: e.target.value })}
-            placeholder="contacto@proveedor.com"
+            label="Calificación (0 a 5)"
+            type="number"
+            min="0"
+            max="5"
+            step="0.1"
+            value={f.calificacion ?? ""}
+            error={errors.calificacion}
+            onChange={(e) => set({ calificacion: e.target.value })}
+            placeholder="4.5"
           />
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label="Teléfono"
-              value={telefono}
-              error={errors.telefono}
-              onChange={(e) => cambiar({ telefono: e.target.value, phone: e.target.value })}
-              placeholder="+57 604 123 4567"
-            />
-
-            <Input
-              label="Ciudad"
-              value={ciudad}
-              required
-              error={errors.ciudad}
-              onChange={(e) => cambiar({ ciudad: e.target.value, city: e.target.value })}
-              placeholder="Medellín"
-            />
-          </div>
-
-          {/*
-            Calificación y reseñas se escriben a mano porque todavía no hay
-            un módulo que las calcule a partir de evaluaciones reales. Sin
-            este par de campos la tarjeta "Calificación Promedio" se quedaría
-            en cero para siempre, ya que la tabla arranca todo en 0.
-          */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label="Calificación (0 a 5)"
-              type="number"
-              min="0"
-              max="5"
-              step="0.1"
-              value={calificacion}
-              error={errors.calificacion}
-              onChange={(e) => cambiar({ calificacion: e.target.value })}
-              placeholder="4.5"
-            />
-
-            <Input
-              label="Cantidad de reseñas"
-              type="number"
-              min="0"
-              step="1"
-              value={resenas}
-              error={errors.resenas}
-              onChange={(e) => cambiar({ resenas: e.target.value })}
-              placeholder="0"
-            />
-          </div>
-
           <Select
             label="Estado"
-            value={estadoSelect}
-            required
-            onChange={(e) =>
-              cambiar({ estado: e.target.value === "active", status: e.target.value })
-            }
+            value={f.estado === false || f.status === "inactive" ? "inactive" : "active"}
+            onChange={(e) => set({ estado: e.target.value === "active", status: e.target.value })}
             options={[
               { value: "active", label: "Activo" },
               { value: "inactive", label: "Inactivo" }
             ]}
           />
-
-          <div className="flex justify-end gap-3 border-t border-border pt-5">
-            <Button type="button" variant="outline" onClick={onClose} disabled={guardando}>
-              Cancelar
-            </Button>
-            <Button type="button" onClick={guardar} disabled={guardando}>
-              {guardando ? "Guardando…" : "Guardar"}
-            </Button>
-          </div>
         </div>
-      </Modal>
 
-      <FormValidationDialog
-        isOpen={validationOpen}
-        onClose={() => setValidationOpen(false)}
-        message={validate()}
-      />
-    </div>
+        <div className="flex justify-end gap-3 border-t border-border pt-5">
+          <Button type="button" variant="outline" onClick={cerrar} disabled={guardando}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={guardar} disabled={guardando}>
+            {guardando ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

@@ -103,6 +103,7 @@ function AuthProvider({ children }) {
           tipo_documento: datos.documentType,
           documento: datos.document,
           telefono: datos.phone,
+          departamento: datos.department || "Antioquia",
           ciudad: datos.city,
           direccion: datos.address,
           correo: datos.email,

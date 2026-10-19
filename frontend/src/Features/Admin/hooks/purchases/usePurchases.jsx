@@ -282,7 +282,7 @@ function usePurchases() {
       id_proveedor: Number(purchaseForm.id_proveedor),
       // Si es la fecha de hoy se deja que la API ponga la hora actual.
       ...(purchaseForm.fecha_compra && purchaseForm.fecha_compra !== new Date().toISOString().slice(0, 10) && { fecha: `${purchaseForm.fecha_compra}T12:00:00` }),
-      impuesto: purchaseForm.impuesto === "" ? 0 : Number(purchaseForm.impuesto),
+      impuesto: 0,
       items: (purchaseForm.items ?? []).map((item) => ({
         id_producto: Number(item.id_producto),
         cantidad: Number(item.cantidad),

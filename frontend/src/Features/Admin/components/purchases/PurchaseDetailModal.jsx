@@ -57,11 +57,10 @@ function PurchaseDetailModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-3">
           {[
-            ["Subtotal", plata(purchase.subtotal), "text-foreground"],
-            ["Impuesto", plata(purchase.tax), "text-foreground"],
             ["Total", plata(purchase.total), "text-primary"],
+            ["Pagado", plata(purchase.paid), "text-foreground"],
             ["Saldo", plata(saldo), !cancelada && saldo > 0 ? "text-destructive" : "text-success"]
           ].map(([etiqueta, valor, color]) => (
             <div key={etiqueta} className="rounded-xl border border-border bg-muted/20 p-3">

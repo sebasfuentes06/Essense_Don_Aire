@@ -38,7 +38,7 @@ function CustomerDetailModal({ customer, onClose }) {
           <p className="flex items-center gap-2"><IdCard className="h-4 w-4 text-muted-foreground" />{c.document ? `${c.documentType} ${c.document}` : "Sin documento"}</p>
           <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" />{c.phone || "Sin celular"}</p>
           <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" />{c.email || "Sin correo"}</p>
-          <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" />{[c.address, c.city].filter(Boolean).join(", ") || "Sin dirección"}</p>
+          <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" />{[c.address, c.city, c.department].filter(Boolean).join(", ") || "Sin dirección"}</p>
           {c.notes && <p className="text-muted-foreground sm:col-span-2">Notas: {c.notes}</p>}
         </div>
 
@@ -56,7 +56,7 @@ function CustomerDetailModal({ customer, onClose }) {
         {cuenta && (
           <>
             <div className="flex gap-2 border-b border-border">
-              {[["cuenta", "Compras"], ["pagos", "Pagos"], ["favoritos", "Favoritos"]].map(([id, label]) => (
+              {[["cuenta", "Historial"], ["pagos", "Pagos"], ["favoritos", "Favoritos"]].map(([id, label]) => (
                 <button
                   key={id}
                   type="button"

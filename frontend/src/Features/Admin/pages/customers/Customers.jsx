@@ -12,9 +12,9 @@ const customerColumns = [
   { key: "document", header: "Documento" },
   { key: "phone", header: "Celular" },
   { key: "email", header: "Correo" },
-  { key: "city", header: "Municipio" },
+  { key: "department", header: "Departamento" },
+  { key: "city", header: "Ciudad" },
   { key: "address", header: "Dirección" },
-  { key: "purchases", header: "Compras", format: "number" },
   { key: "balance", header: "Saldo", format: "money" },
   { header: "Estado", value: (row) => (row.active ? "Activo" : "Inactivo") },
   { key: "lastPurchase", header: "Última compra", format: "date" }

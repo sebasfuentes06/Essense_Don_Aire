@@ -180,6 +180,7 @@ export function aCliente(c) {
     phone: c.telefono ?? "",
     address: c.direccion ?? "",
     city: c.ciudad ?? "",
+    department: c.departamento ?? "Antioquia",
     documentType: c.tipo_documento ?? "",
     document: c.documento ?? "",
     notes: c.notas ?? "",

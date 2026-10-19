@@ -19,7 +19,7 @@ const ORDER_STATUS = {
 const STATUS_LABELS = {
   [ORDER_STATUS.PENDING]: "Pendiente",
   [ORDER_STATUS.CONFIRMED]: "Confirmado",
-  [ORDER_STATUS.CANCELLED]: "Cancelado"
+  [ORDER_STATUS.CANCELLED]: "Anulado"
 };
 
 const STATUS_VARIANTS = {

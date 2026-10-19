@@ -22,7 +22,6 @@ const purchaseColumns = [
     format: "number"
   },
   { key: "subtotal", header: "Subtotal", format: "money" },
-  { key: "tax", header: "Impuesto", format: "money" },
   { key: "total", header: "Total", format: "money" },
   { key: "paid", header: "Pagado", format: "money" },
   { key: "balance", header: "Saldo", format: "money" },

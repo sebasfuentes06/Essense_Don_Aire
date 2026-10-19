@@ -24,7 +24,7 @@ const sortOptions = [
   { value: "joinDate", label: "Fecha de registro" }
 ];
 
-const emptyForm = { nombre: "", correo: "", contrasena: "", rol: "Vendedor", id_cliente: "", estado: true };
+const emptyForm = { nombre: "", correo: "", contrasena: "", confirmar: "", rol: "Vendedor", id_cliente: "", estado: true };
 
 /** Usuario de la API -> campos que usan las tablas. */
 function aUsuario(u) {
@@ -139,6 +139,7 @@ function useUsers() {
       nombre: user.name ?? "",
       correo: user.email ?? "",
       contrasena: "",
+      confirmar: "",
       rol: user.role,
       id_cliente: user.customerId ? String(user.customerId) : "",
       estado: user.status === "active"

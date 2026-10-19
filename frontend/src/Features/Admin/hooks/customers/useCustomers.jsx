@@ -6,7 +6,6 @@ import { PERSONA_VACIA, personaAApi, erroresApiAPersona } from "../../../../shar
 const sortOptions = [
   { value: "name", label: "Nombre" },
   { value: "balance", label: "Saldo pendiente" },
-  { value: "purchases", label: "N° de compras" },
   { value: "lastPurchase", label: "Última compra" },
   { value: "registeredAt", label: "Fecha de registro" }
 ];
@@ -106,6 +105,7 @@ function useCustomers() {
       documentType: c.documentType || "CC",
       document: c.document,
       phone: c.phone,
+      department: c.department || "Antioquia",
       city: c.city,
       address: c.address,
       email: c.email,

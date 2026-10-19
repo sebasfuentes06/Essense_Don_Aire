@@ -28,8 +28,7 @@ function CustomerTable({ customers, currentPage, totalPages, totalItems, itemsPe
             <TableHead>Cliente</TableHead>
             <TableHead>Documento</TableHead>
             <TableHead>Celular</TableHead>
-            <TableHead>Municipio</TableHead>
-            <TableHead className="text-right">Compras</TableHead>
+            <TableHead>Ciudad</TableHead>
             <TableHead className="text-right">Saldo</TableHead>
             <TableHead>Última compra</TableHead>
             <TableHead>Estado</TableHead>
@@ -53,8 +52,10 @@ function CustomerTable({ customers, currentPage, totalPages, totalItems, itemsPe
                   "—"
                 )}
               </TableCell>
-              <TableCell>{c.city || "—"}</TableCell>
-              <TableCell className="text-right">{c.purchases}</TableCell>
+              <TableCell>
+                {c.city || "—"}
+                {c.department && c.department !== "Antioquia" && <p className="text-xs text-muted-foreground">{c.department}</p>}
+              </TableCell>
               <TableCell className={`whitespace-nowrap text-right font-semibold ${c.balance > 0 ? "text-destructive" : "text-muted-foreground"}`}>
                 {c.balance > 0 ? dinero(c.balance) : "Al día"}
               </TableCell>

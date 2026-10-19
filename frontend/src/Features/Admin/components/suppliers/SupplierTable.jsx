@@ -78,9 +78,12 @@ function SupplierTable({
                 <TableCell>
                   <div>
                     <p className="font-semibold text-foreground">{supplier.name}</p>
+                    {supplier.document && (
+                      <p className="text-xs text-muted-foreground">{supplier.documentType} {supplier.document}</p>
+                    )}
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
-                      {supplier.city || "Sin ciudad"}
+                      {[supplier.city, supplier.department].filter(Boolean).join(", ") || "Sin ciudad"}
                     </p>
                   </div>
                 </TableCell>
@@ -100,13 +103,12 @@ function SupplierTable({
                 <TableCell className="whitespace-nowrap">{moneda.format(comprado)}</TableCell>
 
                 <TableCell className="w-[1%] whitespace-nowrap">
-                  {supplier.reviews > 0 ? (
+                  {calificacion > 0 ? (
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 fill-primary text-primary" />
                       <span className="font-semibold text-foreground">
                         {calificacion.toFixed(1)}
                       </span>
-                      <span className="text-xs text-muted-foreground">({supplier.reviews})</span>
                     </div>
                   ) : (
                     // Sin reseñas, un "0.0 ⭐" se lee como un proveedor pésimo

@@ -93,7 +93,7 @@ function OrdersTable({
                     </button>
                   )}
                   {canCancelOrder(order) && (
-                    <button type="button" className={actionClass} onClick={() => onCancel(order)} title="Cancelar pedido">
+                    <button type="button" className={actionClass} onClick={() => onCancel(order)} title="Anular pedido" aria-label={`Anular ${order.folio}`}>
                       <Ban className="h-4 w-4 text-destructive" />
                     </button>
                   )}

@@ -13,6 +13,7 @@ function validar(f, isEditing) {
   if (!PATRON_CORREO.test(f.correo.trim())) e.correo = "Correo no válido.";
   if (!isEditing && f.contrasena.length < 8) e.contrasena = "Mínimo 8 caracteres.";
   if (isEditing && f.contrasena && f.contrasena.length < 8) e.contrasena = "Mínimo 8 caracteres.";
+  if ((f.contrasena || !isEditing) && (f.confirmar ?? "") !== f.contrasena) e.confirmar = "Las contraseñas no coinciden.";
   if (f.rol === "Cliente" && !f.id_cliente) e.id_cliente = "Elige la ficha del cliente.";
   return e;
 }
@@ -74,6 +75,17 @@ function UserFormModal({ isOpen, onClose, isEditing, isSelf, userForm, onUserFor
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+        {(!isEditing || f.contrasena) && (
+          <Input
+            label="Confirmar contraseña"
+            type={showPassword ? "text" : "password"}
+            required
+            value={f.confirmar ?? ""}
+            error={errors.confirmar}
+            onChange={(e) => set({ confirmar: e.target.value })}
+            placeholder="Escríbela otra vez"
+          />
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           <Select
             label="Rol"

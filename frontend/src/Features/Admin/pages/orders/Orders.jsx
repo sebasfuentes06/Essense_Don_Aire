@@ -100,10 +100,10 @@ function Orders() {
 
       <MotivoDialog
         isOpen={Boolean(o.cancellingOrder)}
-        title={`Cancelar pedido ${o.cancellingOrder?.folio ?? ""}`}
-        description="El pedido queda cancelado y no se puede convertir en venta."
-        label="Motivo de la cancelación"
-        confirmText="Cancelar pedido"
+        title={`Anular pedido ${o.cancellingOrder?.folio ?? ""}`}
+        description="El pedido no se borra: queda anulado (con el motivo) y ya no se puede convertir en venta."
+        label="Motivo de la anulación"
+        confirmText="Anular pedido"
         danger
         onConfirm={o.confirmCancel}
         onClose={() => o.setCancellingOrder(null)}

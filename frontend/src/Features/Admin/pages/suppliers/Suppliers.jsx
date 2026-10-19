@@ -14,13 +14,16 @@ import {
 import { useAuth } from "../../../../shared/auth";
 
 const supplierColumns = [
+  { header: "Tipo de persona", value: (r) => (r.personType === "juridica" ? "Jurídica" : r.personType === "natural" ? "Natural" : "") },
+  { key: "documentType", header: "Tipo doc." },
+  { key: "document", header: "Documento" },
   { key: "name", header: "Proveedor" },
   { key: "contact", header: "Contacto" },
   { key: "email", header: "Correo" },
   { key: "phone", header: "Teléfono" },
+  { key: "department", header: "Departamento" },
   { key: "city", header: "Ciudad" },
   { key: "rating", header: "Calificación", format: "number" },
-  { key: "reviews", header: "Reseñas", format: "number" },
   { key: "totalProducts", header: "Productos", format: "number" },
   { key: "totalOrders", header: "Órdenes", format: "number" },
   { key: "totalSpent", header: "Total comprado", format: "money" },

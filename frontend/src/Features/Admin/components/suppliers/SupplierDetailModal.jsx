@@ -106,15 +106,21 @@ function SupplierDetailModal({ isOpen, onClose, supplier }) {
             </span>
           </Dato>
 
-          <Dato etiqueta="Ciudad">
+          <Dato etiqueta="Tipo de persona">
+            {supplier.personType === "juridica" ? "Persona jurídica" : supplier.personType === "natural" ? "Persona natural" : "No registrado"}
+          </Dato>
+
+          <Dato etiqueta="Documento">{supplier.document ? `${supplier.documentType} ${supplier.document}` : "No registrado"}</Dato>
+
+          <Dato etiqueta="Ubicación">
             <span className="flex items-center gap-2">
               <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-              {supplier.city || "No registrada"}
+              {[supplier.city, supplier.department].filter(Boolean).join(", ") || "No registrada"}
             </span>
           </Dato>
 
           <Dato etiqueta="Calificación">
-            {supplier.reviews > 0 ? (
+            {calificacion > 0 ? (
               <span className="flex items-center gap-2">
                 <Star className="h-4 w-4 fill-primary text-primary" />
                 {calificacion.toFixed(1)} de 5
@@ -123,8 +129,6 @@ function SupplierDetailModal({ isOpen, onClose, supplier }) {
               "Sin calificar"
             )}
           </Dato>
-
-          <Dato etiqueta="Reseñas">{supplier.reviews ?? 0}</Dato>
 
           <Dato etiqueta="Proveedor desde">
             {supplier.since ? new Date(supplier.since).toLocaleDateString("es-CO") : "No disponible"}
