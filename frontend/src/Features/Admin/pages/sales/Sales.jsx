@@ -1,110 +1,115 @@
-import { jsx, jsxs } from "react/jsx-runtime";
-import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
+import { AlertCircle, Plus, RefreshCw } from "lucide-react";
+import { Button } from "../../../../shared/components/ui/button";
+import { ExportButton, PrintButton } from "../../../../shared/components/ui/ExportButton";
+import { MotivoDialog, NOMBRES_METODO, NOMBRES_CANAL } from "../../../../shared/negocio";
 import { useSales } from "../../hooks/sales";
-import { SalesHeader, SalesStats, SalesFiltersBar, SalesTable, SaleCancelDialog, SaleDetailModal, SaleFormModal } from "../../components/sales";
+import { SalesStats, SalesFiltersBar, SalesTable, SaleDetailModal, SaleFormModal, ESTADO_VENTA } from "../../components/sales";
+import { PaymentFormModal } from "../../components/payments";
+
+const columns = [
+  { key: "invoice", header: "Factura" },
+  { key: "date", header: "Fecha", format: "date" },
+  { key: "customer", header: "Cliente" },
+  { header: "Canal", value: (r) => NOMBRES_CANAL[r.channel] ?? r.channel },
+  { header: "Forma de pago", value: (r) => NOMBRES_METODO[r.paymentMethod] ?? r.paymentMethod ?? "" },
+  { key: "total", header: "Total", format: "money" },
+  { key: "paid", header: "Pagado", format: "money" },
+  { key: "balance", header: "Saldo", format: "money" },
+  { header: "Estado", value: (r) => ESTADO_VENTA[r.paymentStatus]?.[0] ?? r.paymentStatus },
+  { key: "orderCode", header: "Pedido" },
+  { key: "seller", header: "Atendió" }
+];
+
+/** Ventas conectadas a la API de la app: factura, abonos, Wompi y anulación. */
 function Sales() {
-  const {
-    sellers,
-    searchQuery,
-    currentPage,
-    setCurrentPage,
-    itemsPerPage,
-    setItemsPerPage,
-    sortBy,
-    setSortBy,
-    sortDirection,
-    setSortDirection,
-    sortOptions,
-    statusFilter,
-    sellerFilter,
-    detailSale,
-    cancelDialogOpen,
-    saleToCancel,
-    deleteDialogOpen,
-    saleToDelete,
-    isSaleFormOpen,
-    saleForm,
-    setSaleForm,
-    filtered,
-    totalPages,
-    paginated,
-    totalRevenue,
-    avgTicket,
-    completedCount,
-    todayCount,
-    handleSearchChange,
-    handleStatusFilterChange,
-    handleSellerFilterChange,
-    handleViewDetail,
-    handleNewSale,
-    handleCloseSaleForm,
-    handleSaveSale,
-    handleCloseDetail,
-    handleCancel,
-    closeCancelDialog,
-    confirmCancel,
-    handleDelete,
-    closeDeleteDialog,
-    confirmDelete
-  } = useSales();
-  return /* @__PURE__ */jsxs("div", {
-    className: "space-y-6",
-    children: [/* @__PURE__ */jsx(SalesHeader, {
-      onNewSale: handleNewSale,
-      rows: filtered
-    }), /* @__PURE__ */jsx(SalesStats, {
-      completedCount,
-      totalRevenue,
-      todayCount,
-      avgTicket
-    }), /* @__PURE__ */jsx(SalesFiltersBar, {
-      searchQuery,
-      onSearchChange: handleSearchChange,
-      statusFilter,
-      onStatusFilterChange: handleStatusFilterChange,
-      sellerFilter,
-      onSellerFilterChange: handleSellerFilterChange,
-      sellers,
-      sortBy,
-      onSortByChange: setSortBy,
-      sortDirection,
-      onSortDirectionChange: setSortDirection,
-      sortOptions,
-      itemsPerPage,
-      onItemsPerPageChange: setItemsPerPage
-    }), /* @__PURE__ */jsx(SalesTable, {
-      sales: paginated,
-      currentPage,
-      totalPages,
-      totalItems: filtered.length,
-      itemsPerPage,
-      onPageChange: setCurrentPage,
-      onViewDetail: handleViewDetail,
-      onCancel: handleCancel,
-      onDelete: handleDelete
-    }), /* @__PURE__ */jsx(SaleDetailModal, {
-      isOpen: !!detailSale,
-      onClose: handleCloseDetail,
-      sale: detailSale,
-      onCancel: handleCancel
-    }), /* @__PURE__ */jsx(SaleFormModal, {
-      isOpen: isSaleFormOpen,
-      onClose: handleCloseSaleForm,
-      saleForm,
-      onFormChange: setSaleForm,
-      sellers,
-      onSave: handleSaveSale
-    }), /* @__PURE__ */jsx(SaleCancelDialog, {
-      isOpen: cancelDialogOpen,
-      onClose: closeCancelDialog,
-      onConfirm: confirmCancel,
-      saleToCancel
-    }), /* @__PURE__ */jsx(DeleteDialog, {
-      isOpen: deleteDialogOpen,
-      onClose: closeDeleteDialog,
-      onConfirm: confirmDelete,
-      itemName: saleToDelete?.folio
-    })]
-  });
+  const s = useSales();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="mb-2 text-4xl font-bold text-foreground">Ventas</h1>
+          <p className="text-muted-foreground">Facturas, abonos y saldo de cada venta</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <ExportButton name="ventas" rows={s.filtered} columns={columns} />
+          <PrintButton />
+          {s.canCreate && (
+            <Button onClick={() => s.setIsFormOpen(true)}>
+              <Plus className="h-5 w-5" /> Registrar venta
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <SalesStats stats={s.stats} />
+
+      <SalesFiltersBar
+        searchQuery={s.searchQuery}
+        onSearchChange={s.handleSearchChange}
+        statusFilter={s.statusFilter}
+        onStatusFilterChange={s.handleStatusFilterChange}
+        channelFilter={s.channelFilter}
+        onChannelFilterChange={s.handleChannelFilterChange}
+        sortBy={s.sortBy}
+        onSortByChange={s.setSortBy}
+        sortDirection={s.sortDirection}
+        onSortDirectionChange={s.setSortDirection}
+        sortOptions={s.sortOptions}
+        itemsPerPage={s.itemsPerPage}
+        onItemsPerPageChange={s.setItemsPerPage}
+      />
+
+      {s.error ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+          <AlertCircle className="h-8 w-8 text-destructive" />
+          <p className="text-sm text-destructive">{s.error}</p>
+          <Button variant="outline" onClick={s.reload}>
+            <RefreshCw /> Reintentar
+          </Button>
+        </div>
+      ) : s.isLoading && s.all.length === 0 ? (
+        <div className="p-12 text-center text-muted-foreground">Cargando ventas…</div>
+      ) : (
+        <SalesTable
+          sales={s.paginated}
+          currentPage={s.currentPage}
+          totalPages={s.totalPages}
+          totalItems={s.filtered.length}
+          itemsPerPage={s.itemsPerPage}
+          onPageChange={s.setCurrentPage}
+          onView={s.openDetail}
+          onPay={s.setPayingSale}
+          onCancel={s.setCancellingSale}
+          isAdmin={s.isAdmin}
+        />
+      )}
+
+      <SaleDetailModal
+        sale={s.detailSale}
+        onClose={() => s.setDetailSale(null)}
+        onPay={s.setPayingSale}
+        onCancel={s.setCancellingSale}
+        onWompi={s.createWompiLink}
+        isAdmin={s.isAdmin}
+      />
+
+      <SaleFormModal isOpen={s.isFormOpen} onSave={s.createSale} onClose={() => s.setIsFormOpen(false)} />
+
+      <PaymentFormModal sale={s.payingSale} isClient={false} onClose={() => s.setPayingSale(null)} onSave={s.savePayment} />
+
+      <MotivoDialog
+        isOpen={Boolean(s.cancellingSale)}
+        title={`Anular ${s.cancellingSale?.invoice ?? ""}`}
+        description="El stock vuelve al inventario y los pagos aplicados quedan anulados."
+        label="Motivo de la anulación"
+        confirmText="Anular venta"
+        danger
+        onConfirm={s.confirmCancel}
+        onClose={() => s.setCancellingSale(null)}
+      />
+    </div>
+  );
 }
+
 export { Sales };

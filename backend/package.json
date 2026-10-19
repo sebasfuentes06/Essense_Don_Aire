@@ -13,6 +13,7 @@
     "start": "node src/server.js",
     "db:setup": "node scripts/setup-db.js",
     "seed": "node scripts/seed-usuarios.js",
+    "clave": "node scripts/restablecer-clave.js",
     "seed:demo": "node scripts/seed-demo.js",
     "db:sql": "node scripts/aplicar-sql.js",
     "test:proveedores": "node scripts/probar-proveedores.js",

@@ -1,55 +1,58 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
-import { useAuth, ROLES } from "../../../shared/auth";
+import { useAuth } from "../../../shared/auth";
+import { PERSONA_VACIA, validarPersona, erroresApiAPersona } from "../../../shared/persona";
 
 const INITIAL_FORM = {
-  fullName: "",
-  email: "",
-  phone: "",
+  ...PERSONA_VACIA,
   password: "",
   confirmPassword: "",
-  role: ROLES.CLIENT,
   acceptTerms: false
 };
 
 /**
- * Registro contra la API. El backend solo acepta crear cuentas de Cliente o
- * Vendedor: el perfil Administrador lo asigna un administrador desde Usuarios.
+ * Registro contra la API unificada (la misma de la app móvil).
+ *
+ * La cuenta queda PENDIENTE: la administradora la aprueba (y le asigna el
+ * rol) desde Usuarios. Por eso aquí no se inicia sesión: se muestra el aviso
+ * de "solicitud enviada".
  */
 function useRegisterForm() {
   const { register } = useAuth();
-  const navigate = useNavigate();
 
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [sentMessage, setSentMessage] = useState("");
 
   const validateForm = () => {
-    const newErrors = {};
-    if (!formData.fullName.trim()) newErrors.fullName = "El nombre completo es requerido";
-    if (!formData.email.trim()) newErrors.email = "El correo electrónico es requerido";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Correo electrónico inválido";
-    if (!formData.phone.trim()) newErrors.phone = "El teléfono es requerido";
+    const newErrors = validarPersona(formData, { correoObligatorio: true });
     if (!formData.password) newErrors.password = "La contraseña es requerida";
     else if (formData.password.length < 8) newErrors.password = "La contraseña debe tener al menos 8 caracteres";
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Las contraseñas no coinciden";
-    if (![ROLES.CLIENT, ROLES.SELLER].includes(formData.role)) newErrors.role = "Debes seleccionar un perfil";
-    if (!formData.acceptTerms) newErrors.acceptTerms = "Debes aceptar los términos y condiciones";
-
+    if (!formData.acceptTerms) newErrors.acceptTerms = "Debes aceptar el tratamiento de datos personales";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  /** Recibe el formulario completo (CamposPersona) o un solo campo. */
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
+    if (typeof field === "object") {
+      setFormData((prev) => ({ ...prev, ...field }));
+      setErrors({});
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+      if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
     setServerError("");
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      setServerError("Revisa los campos marcados en rojo.");
+      return;
+    }
 
     setIsLoading(true);
     const result = await register(formData);
@@ -57,15 +60,13 @@ function useRegisterForm() {
 
     if (!result.ok) {
       setServerError(result.error);
-      // errores por campo que devuelva el backend
-      if (result.details) setErrors((prev) => ({ ...prev, ...result.details }));
+      if (result.details) setErrors((prev) => ({ ...prev, ...erroresApiAPersona(result.details) }));
       return;
     }
-
-    navigate("/panel", { replace: true });
+    setSentMessage(result.message ?? "Tu solicitud fue enviada. Te avisaremos por correo cuando la aprueben.");
   };
 
-  return { formData, errors, serverError, isLoading, handleChange, handleSubmit };
+  return { formData, errors, serverError, isLoading, sentMessage, handleChange, handleSubmit };
 }
 
 export { useRegisterForm };

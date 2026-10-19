@@ -1,15 +1,13 @@
-import { jsx } from "react/jsx-runtime";
 import { ProductCard } from "./ProductCard";
-function ProductGrid({
-  products,
-  onAddToCart
-}) {
-  return /* @__PURE__ */jsx("div", {
-    className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6",
-    children: products.map(product => /* @__PURE__ */jsx(ProductCard, {
-      product,
-      onAddToCart
-    }, product.id))
-  });
+
+function ProductGrid({ products, onAddToCart, cantidadEnCarrito = () => 0 }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} inCart={cantidadEnCarrito(product.id)} />
+      ))}
+    </div>
+  );
 }
+
 export { ProductGrid };

@@ -1,8 +1,51 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { api, ApiError } from "../../../../shared/api";
+import { cargarProductos, num, NOMBRES_METODO, METODOS_ABONO } from "../../../../shared/negocio";
+
+/** Compra de la API de la app -> forma que usan los componentes. */
+const ESTADO_PAGO = { pendiente: "pending", parcial: "partial", pagada: "paid", cancelada: "cancelled" };
+function aCompra(c) {
+  return {
+    id: c.id_compra,
+    folio: c.folio,
+    date: c.fecha,
+    supplierId: c.id_proveedor,
+    supplierName: c.proveedor,
+    subtotal: num(c.subtotal),
+    tax: num(c.impuesto),
+    total: num(c.total),
+    paid: num(c.pagado),
+    balance: c.estado === "cancelada" ? 0 : num(c.saldo),
+    status: ESTADO_PAGO[c.estado_pago] ?? c.estado_pago,
+    notes: c.notas ?? "",
+    cancelReason: c.motivo_cancelacion ?? "",
+    registeredBy: c.registro ?? "",
+    units: Number(c.unidades ?? 0),
+    lines: Number(c.lineas ?? 0),
+    items: (c.items ?? []).map((i) => ({
+      productId: i.id_producto,
+      productName: i.nombre,
+      sku: i.sku,
+      quantity: Number(i.cantidad),
+      unitCost: num(i.costo_unitario),
+      subtotal: num(i.subtotal)
+    })),
+    payments: (c.pagos ?? []).map((p) => ({
+      id: p.id_pago_compra,
+      date: p.fecha,
+      amount: num(p.monto),
+      method: NOMBRES_METODO[p.metodo] ?? p.metodo,
+      methodCode: p.metodo,
+      reference: p.referencia ?? ""
+    })),
+    hasDetail: Array.isArray(c.items)
+  };
+}
+const METODOS_PAGO_COMPRA = METODOS_ABONO.map((m) => ({ id: m, nombre: NOMBRES_METODO[m] }));
 
 /**
- * Compras a proveedores, ya contra la API.
+ * Compras a proveedores, contra la API de la app móvil (/api/compras).
  *
  * Es el primer módulo que no solo guarda: mueve el inventario. Por eso hay
  * tres cosas que cambian respecto a los CRUD anteriores.
@@ -101,81 +144,76 @@ function usePurchases() {
     return () => clearTimeout(id);
   }, [searchQuery]);
 
-  const filtros = {
-    search: searchTerm,
-    status: statusFilter,
-    supplierId: supplierFilter,
-    from: dateFrom,
-    to: dateTo,
-    sortBy,
-    sortDir: sortDirection
-  };
+  const [allPurchases, setAllPurchases] = useState([]);
 
   const fetchPurchases = useCallback(async () => {
     setIsLoading(true);
     setLoadError("");
     try {
-      const { data, stats: resumen, meta } = await api.get("/compras", {
-        search: searchTerm,
-        status: statusFilter,
-        supplierId: supplierFilter,
-        from: dateFrom,
-        to: dateTo,
-        sortBy,
-        sortDir: sortDirection,
-        page: currentPage,
-        limit: itemsPerPage
-      });
-      setPurchases(data ?? []);
-      setStats(resumen ?? emptyStats);
-      setTotalItems(meta?.total ?? 0);
-      setTotalPages(meta?.totalPages ?? 1);
+      setAllPurchases((await api.todos("/compras")).map(aCompra));
     } catch (error) {
-      setPurchases([]);
-      setTotalItems(0);
+      setAllPurchases([]);
       setLoadError(error instanceof ApiError ? error.message : "No se pudieron cargar las compras.");
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, statusFilter, supplierFilter, dateFrom, dateTo, sortBy, sortDirection, currentPage, itemsPerPage]);
-
-  /**
-   * Las filas del CSV. Van aparte porque la tabla solo tiene en memoria la
-   * página actual: exportar eso se llevaría diez filas de cincuenta sin avisar.
-   */
-  const fetchExportRows = useCallback(async () => {
-    try {
-      const { data } = await api.get("/compras", { ...filtros, page: 1, limit: 100 });
-      setExportRows(data ?? []);
-    } catch {
-      setExportRows([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter, supplierFilter, dateFrom, dateTo, sortBy, sortDirection]);
+  }, []);
 
   const fetchOpciones = useCallback(async () => {
     try {
-      const { proveedores, metodosPago, folioSugerido } = await api.get("/compras/opciones");
-      setSuppliers(proveedores ?? []);
-      setPaymentMethods(metodosPago ?? []);
-      setSuggestedFolio(folioSugerido ?? "");
+      const [prov, folio] = await Promise.all([api.todos("/proveedores", { status: "active" }), api.datos("/compras/siguiente-folio")]);
+      setSuppliers(prov.map((p) => ({ id: p.id_proveedor, nombre: p.nombre })));
+      setSuggestedFolio(folio?.folio ?? "");
     } catch {
       setSuppliers([]);
-      setPaymentMethods([]);
     }
+    setPaymentMethods(METODOS_PAGO_COMPRA);
   }, []);
 
   useEffect(() => { fetchPurchases(); }, [fetchPurchases]);
-  useEffect(() => { fetchExportRows(); }, [fetchExportRows]);
   useEffect(() => { fetchOpciones(); }, [fetchOpciones]);
 
+  // Filtros, orden y paginación en el navegador.
+  const filtrados = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    const lista = allPurchases.filter((c) => {
+      if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      if (supplierFilter !== "all" && supplierFilter !== "" && String(c.supplierId) !== String(supplierFilter)) return false;
+      const dia = String(c.date ?? "").slice(0, 10);
+      if (dateFrom && dia < dateFrom) return false;
+      if (dateTo && dia > dateTo) return false;
+      if (!q) return true;
+      return [c.folio, c.supplierName, c.notes].some((v) => String(v ?? "").toLowerCase().includes(q));
+    });
+    const dir = sortDirection === "desc" ? -1 : 1;
+    return lista.sort((a, b) => {
+      if (sortBy === "date") return (new Date(a.date) - new Date(b.date)) * dir;
+      const x = a[sortBy];
+      const y = b[sortBy];
+      if (typeof x === "number") return (x - y) * dir;
+      return String(x ?? "").localeCompare(String(y ?? ""), "es") * dir;
+    });
+  }, [allPurchases, searchTerm, statusFilter, supplierFilter, dateFrom, dateTo, sortBy, sortDirection]);
+
+  useEffect(() => {
+    setExportRows(filtrados);
+    setTotalItems(filtrados.length);
+    setTotalPages(Math.max(1, Math.ceil(filtrados.length / itemsPerPage)));
+    setPurchases(filtrados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage));
+    const vigentes = allPurchases.filter((c) => c.status !== "cancelled");
+    setStats({
+      total: allPurchases.length,
+      porPagar: vigentes.filter((c) => c.balance > 0).length,
+      canceladas: allPurchases.length - vigentes.length,
+      totalComprado: vigentes.reduce((s, c) => s + c.total, 0),
+      saldoPendiente: vigentes.reduce((s, c) => s + c.balance, 0)
+    });
+  }, [filtrados, allPurchases, currentPage, itemsPerPage]);
+
   /**
-   * Al elegir proveedor se traen SUS productos.
-   *
-   * La lista no es un adorno: la API rechaza una compra que traiga productos
-   * de otro proveedor, porque `productos.id_proveedor` dice a quién se le
-   * compra cada uno. Ofrecer solo los suyos evita que alguien arme una compra
-   * entera y se entere al guardar.
+   * Al elegir proveedor se ofrecen SOLO sus productos: la API rechaza una
+   * compra con productos de otro proveedor (productos.id_proveedor dice a
+   * quién se le compra cada uno).
    */
   const idProveedorForm = purchaseForm.id_proveedor;
   useEffect(() => {
@@ -185,9 +223,10 @@ function usePurchases() {
     }
     let cancelado = false;
     setLoadingProducts(true);
-    api
-      .get(`/compras/proveedores/${idProveedorForm}/productos`)
-      .then(({ productos }) => { if (!cancelado) setSupplierProducts(productos ?? []); })
+    cargarProductos({ proveedor: idProveedorForm })
+      .then((lista) => {
+        if (!cancelado) setSupplierProducts(lista.map((p) => ({ id: p.id, nombre: p.name, sku: p.sku, stock: p.stock, precio: p.price })));
+      })
       .catch(() => { if (!cancelado) setSupplierProducts([]); })
       .finally(() => { if (!cancelado) setLoadingProducts(false); });
     return () => { cancelado = true; };
@@ -205,15 +244,15 @@ function usePurchases() {
   const run = async (accion) => {
     setActionError("");
     try {
-      const resultado = await accion();
+      const r = await accion();
+      if (r?.mensaje) toast.success(r.mensaje);
       await fetchPurchases();
-      await fetchExportRows();
       await fetchOpciones();
-      return { ok: true, resultado };
+      return { ok: true, resultado: r?.datos?.id_compra ? aCompra(r.datos) : null };
     } catch (error) {
       setActionError(error instanceof ApiError ? error.message : "No se pudo completar la operación.");
-      if (error?.details) setFormErrors(error.details);
-      return { ok: false };
+      if (error?.details) setFormErrors({ ...error.details, fecha_compra: error.details.fecha });
+      return { ok: false, error: error.message };
     }
   };
 
@@ -240,13 +279,14 @@ function usePurchases() {
     setFormErrors({});
     const payload = {
       folio: purchaseForm.folio,
-      id_proveedor: purchaseForm.id_proveedor,
-      fecha_compra: purchaseForm.fecha_compra || undefined,
-      impuesto: purchaseForm.impuesto === "" ? 0 : purchaseForm.impuesto,
+      id_proveedor: Number(purchaseForm.id_proveedor),
+      // Si es la fecha de hoy se deja que la API ponga la hora actual.
+      ...(purchaseForm.fecha_compra && purchaseForm.fecha_compra !== new Date().toISOString().slice(0, 10) && { fecha: `${purchaseForm.fecha_compra}T12:00:00` }),
+      impuesto: purchaseForm.impuesto === "" ? 0 : Number(purchaseForm.impuesto),
       items: (purchaseForm.items ?? []).map((item) => ({
-        id_producto: item.id_producto,
-        cantidad: item.cantidad,
-        precio_costo: item.precio_costo
+        id_producto: Number(item.id_producto),
+        cantidad: Number(item.cantidad),
+        costo_unitario: Number(item.precio_costo)
       }))
     };
 
@@ -258,9 +298,14 @@ function usePurchases() {
   /* Detalle                                                           */
   /* ---------------------------------------------------------------- */
 
-  const handleViewDetail = (purchase) => {
+  const handleViewDetail = async (purchase) => {
     setActionError("");
     setDetailPurchase(purchase);
+    try {
+      setDetailPurchase(aCompra(await api.datos(`/compras/${purchase.id}`)));
+    } catch (error) {
+      setActionError(error.message);
+    }
   };
   const handleCloseDetail = () => setDetailPurchase(null);
 
@@ -292,8 +337,8 @@ function usePurchases() {
     setFormErrors({});
     const { ok, resultado } = await run(() =>
       api.post(`/compras/${purchaseToPay.id}/pagos`, {
-        id_metodo_pago: paymentForm.id_metodo_pago,
-        monto: paymentForm.monto,
+        metodo: paymentForm.id_metodo_pago,
+        monto: Number(paymentForm.monto),
         referencia: paymentForm.referencia
       })
     );
@@ -329,16 +374,14 @@ function usePurchases() {
     setActionError("");
   };
 
-  const confirmCancel = async () => {
+  /** Cancelar pide el motivo; si la API lo bloquea, el diálogo muestra por qué. */
+  const confirmCancel = async (motivo) => {
     if (!purchaseToCancel) return;
-    const { ok, resultado } = await run(() => api.patch(`/compras/${purchaseToCancel.id}/cancelar`));
-    if (ok) {
-      if (detailPurchase?.id === purchaseToCancel.id) setDetailPurchase(resultado);
-      setCancelDialogOpen(false);
-      setPurchaseToCancel(null);
-    }
-    // Si falló, el diálogo se queda abierto con el motivo: casi siempre es que
-    // tiene abonos o que la mercancía ya salió, y conviene leerlo.
+    const { ok, resultado, error } = await run(() => api.post(`/compras/${purchaseToCancel.id}/cancelar`, { motivo }));
+    if (!ok) throw new Error(error);
+    if (detailPurchase?.id === purchaseToCancel.id) setDetailPurchase(resultado);
+    setCancelDialogOpen(false);
+    setPurchaseToCancel(null);
   };
 
   const handleDeleteRequest = (purchase) => {

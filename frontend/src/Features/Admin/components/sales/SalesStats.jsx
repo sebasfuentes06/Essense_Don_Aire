@@ -1,75 +1,30 @@
-import { jsx, jsxs } from "react/jsx-runtime";
-import { ShoppingCart, DollarSign, TrendingUp, CreditCard } from "lucide-react";
+import { Receipt, CalendarDays, AlertCircle, XCircle } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
-function SalesStats({
-  completedCount,
-  totalRevenue,
-  todayCount,
-  avgTicket
-}) {
-  return /* @__PURE__ */jsxs("div", {
-    className: "stats-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4",
-    children: [/* @__PURE__ */jsx(Card, {
-      children: /* @__PURE__ */jsxs("div", {
-        className: "flex items-center justify-between",
-        children: [/* @__PURE__ */jsxs("div", {
-          children: [/* @__PURE__ */jsx("p", {
-            className: "text-sm text-muted-foreground",
-            children: "Ventas Completadas"
-          }), /* @__PURE__ */jsx("p", {
-            className: "text-2xl font-bold text-foreground",
-            children: completedCount
-          })]
-        }), /* @__PURE__ */jsx(ShoppingCart, {
-          className: "h-8 w-8 text-primary"
-        })]
-      })
-    }), /* @__PURE__ */jsx(Card, {
-      children: /* @__PURE__ */jsxs("div", {
-        className: "flex items-center justify-between",
-        children: [/* @__PURE__ */jsxs("div", {
-          children: [/* @__PURE__ */jsx("p", {
-            className: "text-sm text-muted-foreground",
-            children: "Ingresos Totales"
-          }), /* @__PURE__ */jsxs("p", {
-            className: "text-2xl font-bold text-primary",
-            children: ["$", totalRevenue.toFixed(2)]
-          })]
-        }), /* @__PURE__ */jsx(DollarSign, {
-          className: "h-8 w-8 text-primary"
-        })]
-      })
-    }), /* @__PURE__ */jsx(Card, {
-      children: /* @__PURE__ */jsxs("div", {
-        className: "flex items-center justify-between",
-        children: [/* @__PURE__ */jsxs("div", {
-          children: [/* @__PURE__ */jsx("p", {
-            className: "text-sm text-muted-foreground",
-            children: "Ventas Hoy"
-          }), /* @__PURE__ */jsx("p", {
-            className: "text-2xl font-bold text-success",
-            children: todayCount
-          })]
-        }), /* @__PURE__ */jsx(TrendingUp, {
-          className: "h-8 w-8 text-success"
-        })]
-      })
-    }), /* @__PURE__ */jsx(Card, {
-      children: /* @__PURE__ */jsxs("div", {
-        className: "flex items-center justify-between",
-        children: [/* @__PURE__ */jsxs("div", {
-          children: [/* @__PURE__ */jsx("p", {
-            className: "text-sm text-muted-foreground",
-            children: "Ticket Promedio"
-          }), /* @__PURE__ */jsxs("p", {
-            className: "text-2xl font-bold text-foreground",
-            children: ["$", avgTicket.toFixed(2)]
-          })]
-        }), /* @__PURE__ */jsx(CreditCard, {
-          className: "h-8 w-8 text-muted-foreground"
-        })]
-      })
-    })]
-  });
+import { dinero } from "../../../../shared/negocio";
+
+function SalesStats({ stats }) {
+  const cards = [
+    { label: "Ventas del mes", value: dinero(stats.monthTotal), hint: `${stats.monthCount} venta(s)`, icon: CalendarDays, tone: "text-primary" },
+    { label: "Ventas vigentes", value: String(stats.count), hint: "Sin contar anuladas", icon: Receipt, tone: "text-foreground" },
+    { label: "Por cobrar", value: dinero(stats.balance), hint: `${stats.withBalance} con saldo`, icon: AlertCircle, tone: stats.balance > 0 ? "text-destructive" : "text-success" },
+    { label: "Anuladas", value: String(stats.cancelled), hint: "Devolvieron el stock", icon: XCircle, tone: "text-muted-foreground" }
+  ];
+  return (
+    <div className="stats-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {cards.map(({ label, value, hint, icon: Icon, tone }) => (
+        <Card key={label} className="p-5">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">{label}</p>
+              <p className={`text-2xl font-bold ${tone}`}>{value}</p>
+              <p className="text-xs text-muted-foreground">{hint}</p>
+            </div>
+            <Icon className={`h-8 w-8 shrink-0 ${tone}`} />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
 }
+
 export { SalesStats };

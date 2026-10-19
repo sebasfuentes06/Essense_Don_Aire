@@ -3,6 +3,8 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Breadcrumb } from "./Breadcrumb";
 import { Footer } from "./Footer";
+import { useAuth, ROLES } from "../../../../shared/auth";
+import { CartModal, CartBar } from "../../../../shared/cart";
 
 /**
  * Layout unico del panel. Lo usan los tres perfiles (Administrador, Vendedor
@@ -10,6 +12,8 @@ import { Footer } from "./Footer";
  * partir de los permisos del rol, no el layout.
  */
 function AdminLayout() {
+  const { role } = useAuth();
+  const esCliente = role === ROLES.CLIENT;
   return (
     <div className="flex h-screen min-w-0 overflow-hidden bg-background">
       <Sidebar />
@@ -23,6 +27,9 @@ function AdminLayout() {
         </main>
         <Footer />
       </div>
+      {/* Carrito del cliente: disponible desde cualquier pantalla del panel. */}
+      {esCliente && <CartModal />}
+      {esCliente && <CartBar />}
     </div>
   );
 }

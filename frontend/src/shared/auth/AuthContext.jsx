@@ -1,14 +1,31 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, ApiError, getToken, setToken, setUnauthorizedHandler } from "../api";
-import { ROLES } from "./roles";
+import { ROLES, getPermissions } from "./roles";
 
 /**
- * Sesión de la aplicación, contra la API real.
+ * Sesión de la aplicación, contra la API unificada (la misma de la app móvil).
  *
- * Los permisos ya NO salen de roles.js: vienen del backend, que los lee de
- * `rol_permiso`. Así, si un administrador cambia los permisos de un rol desde
- * el módulo Roles, el cambio se refleja sin tocar código.
+ * La API maneja tres roles fijos (Administrador, Vendedor, Cliente) y valida
+ * cada permiso en el servidor. Aquí los permisos de cada rol salen de
+ * roles.js y solo deciden qué se muestra: ocultar un botón es comodidad, la
+ * protección real está en la API.
  */
+
+/** Usuario de la API -> forma que usa la interfaz. */
+function aSesion(u) {
+  if (!u) return null;
+  return {
+    id: u.id_usuario,
+    name: u.nombre,
+    email: u.correo,
+    phone: u.telefono ?? "",
+    role: u.rol,
+    idCliente: u.id_cliente ?? null,
+    joinDate: u.creado_en ?? null,
+    lastLogin: u.ultimo_acceso ?? null,
+    permissions: getPermissions(u.rol)
+  };
+}
 
 const AuthContext = createContext(undefined);
 
@@ -38,7 +55,7 @@ function AuthProvider({ children }) {
         return;
       }
       try {
-        const { user: sesion } = await api.get("/auth/me");
+        const sesion = aSesion(await api.datos("/auth/yo"));
         if (!cancelado) setUser(sesion);
       } catch (error) {
         if (cancelado) return;
@@ -59,12 +76,9 @@ function AuthProvider({ children }) {
 
   const login = useCallback(async ({ email, password }) => {
     try {
-      const { token, user: sesion } = await api.post(
-        "/auth/login",
-        { correo: email, contrasena: password },
-        { auth: false }
-      );
-      setToken(token);
+      const { datos } = await api.post("/auth/login", { correo: email, password }, { auth: false });
+      const sesion = aSesion(datos.usuario);
+      setToken(datos.token);
       setUser(sesion);
       return { ok: true, user: sesion };
     } catch (error) {
@@ -76,16 +90,28 @@ function AuthProvider({ children }) {
     }
   }, []);
 
-  const register = useCallback(async ({ fullName, email, phone, password, role }) => {
+  /**
+   * Registro: la cuenta queda PENDIENTE hasta que el Administrador la apruebe
+   * (no inicia sesión de una vez). Datos en el mismo orden que la app móvil.
+   */
+  const register = useCallback(async (datos) => {
     try {
-      const { token, user: sesion } = await api.post(
-        "/auth/register",
-        { nombre: fullName, correo: email, telefono: phone, contrasena: password, rol: role },
+      const r = await api.post(
+        "/auth/registro",
+        {
+          nombre: datos.fullName,
+          tipo_documento: datos.documentType,
+          documento: datos.document,
+          telefono: datos.phone,
+          ciudad: datos.city,
+          direccion: datos.address,
+          correo: datos.email,
+          password: datos.password,
+          acepta_datos: datos.acceptTerms === true
+        },
         { auth: false }
       );
-      setToken(token);
-      setUser(sesion);
-      return { ok: true, user: sesion };
+      return { ok: true, message: r?.mensaje };
     } catch (error) {
       return {
         ok: false,
@@ -97,9 +123,15 @@ function AuthProvider({ children }) {
 
   const logout = useCallback(() => clearSession(), [clearSession]);
 
-  /** Actualiza los datos visibles de la sesión (el perfil aún no se guarda en la API). */
-  const updateProfile = useCallback((changes) => {
-    setUser((prev) => (prev ? { ...prev, ...changes } : prev));
+  /** Guarda nombre y celular en la API y actualiza la sesión. */
+  const updateProfile = useCallback(async (changes) => {
+    try {
+      const r = await api.put("/auth/perfil", { nombre: changes.name, telefono: changes.phone });
+      setUser(aSesion(r.datos));
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error.message, details: error?.details };
+    }
   }, []);
 
   const value = useMemo(() => ({

@@ -1,163 +1,102 @@
-import { jsx, jsxs } from "react/jsx-runtime";
-import { Eye, Trash2, Ban } from "lucide-react";
+import { Ban, Eye, Plus } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../../shared/components/ui/Table";
 import { Badge } from "../../../../shared/components/ui/Badge";
 import { Pagination } from "../../../../shared/components/ui/Pagination";
-import { useAuth } from "../../../../shared/auth";
-const paymentMethodLabels = {
-  cash: {
-    label: "Efectivo",
-    variant: "success"
-  },
-  card: {
-    label: "Tarjeta",
-    variant: "info"
-  },
-  transfer: {
-    label: "Transferencia",
-    variant: "default"
-  },
-  mixed: {
-    label: "Mixto",
-    variant: "warning"
-  }
-};
-const statusLabels = {
-  completed: {
-    label: "Completada",
-    variant: "success"
-  },
-  cancelled: {
-    label: "Cancelada",
-    variant: "danger"
-  },
-  pending: {
-    label: "Pendiente",
-    variant: "warning"
-  }
-};
-function SalesTable({
-  sales,
-  currentPage,
-  totalPages,
-  totalItems,
-  itemsPerPage,
-  onPageChange,
-  onViewDetail,
-  onCancel,
-  onDelete
-}) {
-  const { can } = useAuth();
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../../shared/components/ui/Table";
+import { dinero, fecha, hora, NOMBRES_METODO, NOMBRES_CANAL } from "../../../../shared/negocio";
 
-  return /* @__PURE__ */jsxs(Card, {
-    children: [/* @__PURE__ */jsxs(Table, {
-      children: [/* @__PURE__ */jsx(TableHeader, {
-        children: /* @__PURE__ */jsxs(TableRow, {
-          children: [/* @__PURE__ */jsx(TableHead, {
-            children: "Folio"
-          }), /* @__PURE__ */jsx(TableHead, {
-            children: "Fecha"
-          }), /* @__PURE__ */jsx(TableHead, {
-            children: "Cliente"
-          }), /* @__PURE__ */jsx(TableHead, {
-            children: "Vendedor"
-          }), /* @__PURE__ */jsx(TableHead, {
-            children: "Productos"
-          }), /* @__PURE__ */jsx(TableHead, {
-            children: "Total"
-          }), /* @__PURE__ */jsx(TableHead, {
-            children: "Pago"
-          }), /* @__PURE__ */jsx(TableHead, {
-            children: "Estado"
-          }), /* @__PURE__ */jsx(TableHead, {
-            className: "w-[1%] text-right",
-            children: "Acciones"
-          })]
-        })
-      }), /* @__PURE__ */jsx(TableBody, {
-        children: sales.map(sale => {
-          const pm = paymentMethodLabels[sale.paymentMethod];
-          const st = statusLabels[sale.status];
-          return /* @__PURE__ */jsxs(TableRow, {
-            children: [/* @__PURE__ */jsx(TableCell, {
-              children: sale.folio
-            }), /* @__PURE__ */jsx(TableCell, {
-              children: new Date(sale.date).toLocaleDateString()
-            }), /* @__PURE__ */jsx(TableCell, {
-              className: "w-[1%] whitespace-nowrap",
-              children: /* @__PURE__ */jsxs("div", {
-                className: "flex items-center gap-2",
-                children: [/* @__PURE__ */jsx("div", {
-                  className: "h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center",
-                  children: /* @__PURE__ */jsx("span", {
-                    className: "text-xs font-bold text-primary",
-                    children: sale.customer[0]
-                  })
-                }), /* @__PURE__ */jsx("span", {
-                  className: "text-sm font-medium text-foreground",
-                  children: sale.customer
-                })]
-              })
-            }), /* @__PURE__ */jsx(TableCell, {
-              children: sale.seller
-            }), /* @__PURE__ */jsx(TableCell, {
-              children: /* @__PURE__ */jsxs(Badge, {
-                children: [sale.items.reduce((s, i) => s + i.quantity, 0), " items"]
-              })
-            }), /* @__PURE__ */jsxs(TableCell, {
-              children: ["$", sale.total.toFixed(2)]
-            }), /* @__PURE__ */jsx(TableCell, {
-              children: /* @__PURE__ */jsx(Badge, {
-                variant: pm.variant,
-                children: pm.label
-              })
-            }), /* @__PURE__ */jsx(TableCell, {
-              children: /* @__PURE__ */jsx(Badge, {
-                variant: st.variant,
-                children: st.label
-              })
-            }), /* @__PURE__ */jsx(TableCell, {
-              className: "w-[1%] whitespace-nowrap",
-              children: /* @__PURE__ */jsxs("div", {
-                  className: "flex items-center justify-end gap-2",
-                children: [/* @__PURE__ */jsx("button", {
-                  className: "h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center",
-                  onClick: () => onViewDetail(sale),
-                  title: "Ver detalles",
-                  "aria-label": `Ver detalles de ${sale.folio}`,
-                  children: /* @__PURE__ */jsx(Eye, {
-                    className: "h-4 w-4 text-muted-foreground"
-                  })
-                }), can("sales.cancel") && sale.status !== "cancelled" && /* @__PURE__ */jsx("button", {
-                  className: "h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center",
-                  onClick: () => onCancel(sale),
-                  title: "Anular venta",
-                  "aria-label": `Anular venta ${sale.folio}`,
-                  children: /* @__PURE__ */jsx(Ban, {
-                    className: "h-4 w-4 text-muted-foreground"
-                  })
-                }), can("sales.delete") && /* @__PURE__ */jsx("button", {
-                  className: "h-8 w-8 rounded-lg hover:bg-destructive/10 flex items-center justify-center",
-                  onClick: () => onDelete(sale),
-                  title: "Eliminar venta",
-                  "aria-label": `Eliminar venta ${sale.folio}`,
-                  children: /* @__PURE__ */jsx(Trash2, {
-                    className: "h-4 w-4 text-destructive"
-                  })
-                })]
-              })
-            })]
-          }, sale.id);
-        })
-      })]
-    }), totalPages > 1 && /* @__PURE__ */jsx(Pagination, {
-      currentPage,
-      totalPages,
-      totalItems,
-      itemsPerPage,
-      onPageChange
-    })]
-  });
+export const ESTADO_VENTA = {
+  pendiente: ["Pendiente", "danger"],
+  parcial: ["Abonada", "warning"],
+  pagada: ["Pagada", "success"],
+  anulada: ["Anulada", "default"]
+};
+
+const iconBtn = "flex h-8 w-8 items-center justify-center rounded-lg transition-colors";
+
+function SalesTable({ sales, currentPage, totalPages, totalItems, itemsPerPage, onPageChange, onView, onPay, onCancel, isAdmin }) {
+  if (sales.length === 0) {
+    return (
+      <Card>
+        <div className="py-14 text-center">
+          <p className="font-medium text-foreground">No hay ventas</p>
+          <p className="mt-1 text-sm text-muted-foreground">Registra una venta o convierte un pedido.</p>
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <Table className="[&_td]:px-3 [&_th]:px-3">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Factura</TableHead>
+            <TableHead>Fecha</TableHead>
+            <TableHead>Cliente</TableHead>
+            <TableHead>Canal</TableHead>
+            <TableHead>Pago</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">Saldo</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sales.map((v) => {
+            const [label, variant] = ESTADO_VENTA[v.paymentStatus] ?? [v.paymentStatus, "default"];
+            const vigente = v.status !== "anulada";
+            return (
+              <TableRow key={v.id}>
+                <TableCell className="whitespace-nowrap font-medium">
+                  {v.invoice}
+                  {v.orderCode && <p className="text-xs font-normal text-muted-foreground">{v.orderCode}</p>}
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
+                  <div>{fecha(v.date)}</div>
+                  <div className="text-xs text-muted-foreground">{hora(v.date)}</div>
+                </TableCell>
+                <TableCell>
+                  {v.customer}
+                  {v.seller && <p className="text-xs text-muted-foreground">Atendió: {v.seller}</p>}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="info" className="whitespace-nowrap">{NOMBRES_CANAL[v.channel] ?? v.channel}</Badge>
+                </TableCell>
+                <TableCell className="whitespace-nowrap">{NOMBRES_METODO[v.paymentMethod] ?? v.paymentMethod ?? "—"}</TableCell>
+                <TableCell className="whitespace-nowrap text-right font-semibold">{dinero(v.total)}</TableCell>
+                <TableCell className={`whitespace-nowrap text-right ${vigente && v.balance > 0 ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+                  {vigente ? dinero(v.balance) : "—"}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={variant}>{label}</Badge>
+                </TableCell>
+                <TableCell className="w-[1%] whitespace-nowrap">
+                  <div className="flex justify-end gap-1">
+                    <button type="button" className={`${iconBtn} hover:bg-muted`} onClick={() => onView(v)} title="Ver detalle" aria-label={`Ver ${v.invoice}`}>
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                    {vigente && v.balance > 0 && (
+                      <button type="button" className={`${iconBtn} hover:bg-primary/10`} onClick={() => onPay(v)} title="Registrar abono" aria-label={`Abonar a ${v.invoice}`}>
+                        <Plus className="h-4 w-4 text-primary" />
+                      </button>
+                    )}
+                    {isAdmin && vigente && (
+                      <button type="button" className={`${iconBtn} hover:bg-destructive/10`} onClick={() => onCancel(v)} title="Anular venta" aria-label={`Anular ${v.invoice}`}>
+                        <Ban className="h-4 w-4 text-destructive" />
+                      </button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      {totalPages > 1 && (
+        <Pagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={onPageChange} />
+      )}
+    </Card>
+  );
 }
+
 export { SalesTable };

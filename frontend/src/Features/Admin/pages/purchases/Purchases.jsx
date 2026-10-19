@@ -1,6 +1,7 @@
 import { AlertCircle } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
+import { MotivoDialog } from "../../../../shared/negocio";
 import { usePurchases } from "../../hooks/purchases";
 import {
   PurchasesHeader,
@@ -187,19 +188,15 @@ function Purchases() {
         onSave={handleSavePayment}
       />
 
-      <DeleteDialog
+      <MotivoDialog
         isOpen={cancelDialogOpen}
-        onClose={closeCancelDialog}
+        title={`Cancelar la compra ${purchaseToCancel?.folio ?? ""}`}
+        description="El stock que entró con esta compra se descuenta. Si esa mercancía ya se vendió, o si la compra tiene abonos, la API lo bloquea y te dice por qué."
+        label="Motivo de la cancelación"
+        confirmText="Cancelar compra"
+        danger
         onConfirm={confirmCancel}
-        title="¿Cancelar esta compra?"
-        itemName={purchaseToCancel?.folio}
-        confirmLabel="Sí, cancelar"
-        confirmingLabel="Cancelando…"
-        warningText="⚠️ El stock que entró con esta compra se va a devolver"
-        description={
-          actionError ||
-          "La compra queda anulada y el stock de sus productos baja por las mismas cantidades que había subido. Si esa mercancía ya se vendió, la operación se bloquea."
-        }
+        onClose={closeCancelDialog}
       />
 
       <DeleteDialog

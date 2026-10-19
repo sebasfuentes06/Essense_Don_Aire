@@ -1,135 +1,70 @@
 import { useState } from "react";
-import { jsx, jsxs } from "react/jsx-runtime";
+import { AlertCircle } from "lucide-react";
 import { Modal } from "../../../../shared/components/ui/Modal";
 import { Button } from "../../../../shared/components/ui/button";
-import { Input } from "../../../../shared/components/ui/input";
-import { Select } from "../../../../shared/components/ui/Select";
-import { FormValidationDialog } from "../../../../shared/components/ui/FormValidationDialog";
-import { validateCustomerForm } from "../../validations/formValidation";
-function CustomerFormModal({
-  isOpen,
-  onClose,
-  isEditing,
-  customerForm,
-  onFieldChange,
-  onSave
-}) {
-  const nombre = customerForm.nombre ?? customerForm.name ?? "";
-  const correo = customerForm.correo ?? customerForm.email ?? "";
-  const contrasena = customerForm.contrasena ?? customerForm.password ?? "";
-  const telefono = customerForm.telefono ?? customerForm.phone ?? "";
-  const ciudad = customerForm.ciudad ?? customerForm.city ?? "";
-  const estadoValue = customerForm.estado ?? customerForm.status ?? true;
-  const estadoSelect = estadoValue === true || estadoValue === "true" || estadoValue === "active" ? "active" : "inactive";
-  const [validationOpen, setValidationOpen] = useState(false);
+import { CamposPersona, validarPersona } from "../../../../shared/persona";
 
-  const errors = validateCustomerForm({ nombre, correo, contrasena, telefono, ciudad, isEditing });
-  const validate = () => {
-    const nextErrors = validateCustomerForm({ nombre, correo, contrasena, telefono, ciudad, isEditing });
-    return Object.values(nextErrors)[0] || "";
+/** Registrar o editar un cliente con la misma ficha que la app móvil. */
+function CustomerFormModal({ isOpen, onClose, isEditing, form, onFormChange, serverErrors = {}, serverError = "", onSave }) {
+  const [intentado, setIntentado] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const locales = validarPersona(form);
+  const errores = { ...(intentado ? locales : {}), ...serverErrors };
+
+  const guardar = async () => {
+    setIntentado(true);
+    if (Object.keys(locales).length) return;
+    setGuardando(true);
+    try {
+      await onSave();
+    } finally {
+      setGuardando(false);
+    }
   };
 
-  return /* @__PURE__ */jsxs("div", {
-    children: [/* @__PURE__ */jsx(Modal, {
-      isOpen,
-      onClose,
-      size: "xl",
-      title: isEditing ? "Editar Cliente" : "Nuevo Cliente",
-      children: /* @__PURE__ */jsxs("div", {
-        className: "space-y-6",
-        children: [/* @__PURE__ */jsx(Input, {
-          label: "Nombre completo",
-          value: nombre,
-          required: true,
-          error: errors.nombre,
-          onChange: e => {
-            onFieldChange("name", e.target.value);
-            onFieldChange("nombre", e.target.value);
-          },
-          placeholder: "Nombre completo"
-        }), /* @__PURE__ */jsx(Input, {
-          label: "Correo electrónico",
-          value: correo,
-          required: true,
-          error: errors.correo,
-          onChange: e => {
-            onFieldChange("email", e.target.value);
-            onFieldChange("correo", e.target.value);
-          },
-          placeholder: "correo@ejemplo.com"
-        }), /* @__PURE__ */jsx(Input, {
-          label: isEditing ? "Nueva contraseña (opcional)" : "Contraseña",
-          type: "password",
-          required: !isEditing,
-          error: errors.contrasena,
-          value: contrasena,
-          onChange: e => {
-            onFieldChange("password", e.target.value);
-            onFieldChange("contrasena", e.target.value);
-          },
-          placeholder: isEditing ? "Dejar vacío para conservarla" : "Contraseña segura"
-        }), /* @__PURE__ */jsx(Input, {
-          label: "Teléfono",
-          type: "text",
-          inputMode: "numeric",
-          value: telefono,
-          error: errors.telefono,
-          onChange: e => {
-            const nextValue = e.target.value.replace(/[^\d\s()+-]/g, "");
-            onFieldChange("phone", nextValue);
-            onFieldChange("telefono", nextValue);
-          },
-          placeholder: "+52 1 555 555 5555"
-        }), /* @__PURE__ */jsx(Input, {
-          label: "Ciudad",
-          value: ciudad,
-          required: true,
-          error: errors.ciudad,
-          onChange: e => {
-            onFieldChange("city", e.target.value);
-            onFieldChange("ciudad", e.target.value);
-          },
-          placeholder: "Ciudad"
-        }), /* @__PURE__ */jsx(Select, {
-          label: "Estado",
-          value: estadoSelect,
-          required: true,
-          onChange: e => {
-            const nextEstado = e.target.value === "active";
-            onFieldChange("status", e.target.value);
-            onFieldChange("estado", nextEstado);
-          },
-          options: [{
-            value: "active",
-            label: "Activo"
-          }, {
-            value: "inactive",
-            label: "Inactivo"
-          }]
-        }), /* @__PURE__ */jsxs("div", {
-          className: "flex justify-end gap-3 border-t border-border pt-5",
-          children: [/* @__PURE__ */jsx(Button, {
-            variant: "outline",
-            onClick: onClose,
-            children: "Cancelar"
-          }), /* @__PURE__ */jsx(Button, {
-            onClick: () => {
-              const error = validate();
-              if (error) {
-                setValidationOpen(true);
-                return;
-              }
-              onSave();
-            },
-            children: "Guardar"
-          })]
-        })]
-      })
-    }), /* @__PURE__ */jsx(FormValidationDialog, {
-      isOpen: validationOpen,
-      onClose: () => setValidationOpen(false),
-      message: validate()
-    })]
-  });
+  const cerrar = () => {
+    setIntentado(false);
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={cerrar} size="lg" title={isEditing ? "Editar cliente" : "Nuevo cliente"}>
+      <div className="space-y-5">
+        {serverError && (
+          <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{serverError}</span>
+          </div>
+        )}
+        <CamposPersona valor={form} onCambio={onFormChange} errores={errores} />
+        <label className="block text-sm font-medium text-foreground">
+          Notas (opcional)
+          <textarea
+            value={form.notes ?? ""}
+            onChange={(e) => onFormChange({ ...form, notes: e.target.value })}
+            maxLength={250}
+            rows={2}
+            placeholder="Ej. prefiere fragancias florales, entregar en la tarde"
+            className="mt-2 w-full rounded-xl border border-input bg-input-background px-4 py-2 text-sm"
+          />
+        </label>
+        {isEditing && (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.active} onChange={(e) => onFormChange({ ...form, active: e.target.checked })} className="h-4 w-4 accent-primary" />
+            Cliente activo
+          </label>
+        )}
+        <div className="flex justify-end gap-3 border-t border-border pt-5">
+          <Button type="button" variant="outline" onClick={cerrar} disabled={guardando}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={guardar} disabled={guardando}>
+            {guardando ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
 }
+
 export { CustomerFormModal };

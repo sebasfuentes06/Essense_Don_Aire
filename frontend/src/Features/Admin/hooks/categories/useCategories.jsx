@@ -9,8 +9,21 @@ const sortOptions = [
 
 const emptyForm = { nombre: "", descripcion: "", estado: true };
 
+// Columnas por las que la API sabe ordenar (las demás caen en "nombre").
+const ORDEN_API = { name: "nombre", createdAt: "created_at" };
+
+/** Categoría de la API -> forma que usan los componentes. */
+const aCategoria = (c) => ({
+  id: c.id_categoria,
+  name: c.nombre,
+  description: c.descripcion ?? "",
+  productCount: Number(c.total_productos ?? 0),
+  status: c.estado ? "active" : "inactive",
+  createdAt: c.created_at
+});
+
 /**
- * Categorías, ya contra la API.
+ * Categorías, contra la API de la app móvil (la misma base de datos).
  *
  * El filtrado, el orden y la paginación los hace PostgreSQL, no el navegador:
  * se le mandan como parámetros a /api/categorias. Con cinco categorías da
@@ -46,17 +59,21 @@ function useCategories() {
     setIsLoading(true);
     setLoadError("");
     try {
-      const { data, meta } = await api.get("/categorias", {
+      const r = await api.get("/categorias", {
         search: searchQuery,
         status: statusFilter,
-        sortBy,
+        sortBy: ORDEN_API[sortBy] ?? "nombre",
         sortDir: sortDirection,
         page: currentPage,
         limit: itemsPerPage
       });
-      setCategories(data);
-      setTotalItems(meta.total);
-      setTotalPages(meta.totalPages);
+      let lista = (r.datos ?? []).map(aCategoria);
+      if (sortBy === "productCount") {
+        lista = [...lista].sort((a, b) => (a.productCount - b.productCount) * (sortDirection === "desc" ? -1 : 1));
+      }
+      setCategories(lista);
+      setTotalItems(r.paginacion?.total ?? lista.length);
+      setTotalPages(r.paginacion?.totalPaginas ?? 1);
     } catch (error) {
       setCategories([]);
       setTotalItems(0);
@@ -87,7 +104,7 @@ function useCategories() {
   };
 
   const handleToggleStatus = (category) =>
-    run(() => api.patch(`/categorias/${category.id}/estado`, { estado: category.status !== "active" }));
+    run(() => api.put(`/categorias/${category.id}`, { estado: category.status !== "active" }));
 
   const handleDelete = (category) => {
     setCategoryToDelete(category);

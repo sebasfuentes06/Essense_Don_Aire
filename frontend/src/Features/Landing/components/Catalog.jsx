@@ -1,68 +1,62 @@
-import { jsx, jsxs } from "react/jsx-runtime";
+import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { SectionHeader } from "./SectionHeader";
 import { ProductCard } from "./ProductCard";
-const PRODUCTS = [
-  {
-    id: 1,
-    name: "Noir Éclat",
-    category: "Oriental",
-    description: "Notas cálidas con sándalo, vainilla y un toque de ámbar dorado.",
-    price: 89.99,
-    rating: 4.9,
-    reviews: 128,
-    img: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&h=1000&fit=crop"
-  },
-  {
-    id: 2,
-    name: "Velvet Bloom",
-    category: "Floral",
-    description: "Un equilibrio elegante entre rosa, jazmín y madera suave.",
-    price: 74.99,
-    rating: 4.7,
-    reviews: 94,
-    img: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&h=1000&fit=crop"
-  },
-  {
-    id: 3,
-    name: "Soleil Blanc",
-    category: "Fresh",
-    description: "Una experiencia cítrica luminosa con un final sedoso y limpio.",
-    price: 79.99,
-    rating: 4.8,
-    reviews: 76,
-    img: "https://images.unsplash.com/photo-1563170351-be82bc888aa4?w=800&h=1000&fit=crop"
-  }
-];
+import { cargarProductos } from "../../../shared/negocio";
+
+/**
+ * Vitrina pública con los productos reales de la API (la lectura del catálogo
+ * no pide sesión). Primero los que tienen foto y stock.
+ */
 function Catalog({ onLogin }) {
-  return /* @__PURE__ */ jsx("section", {
-    id: "catalogo",
-    className: "mx-auto max-w-7xl px-4 py-24 md:px-8",
-    children: /* @__PURE__ */ jsxs("div", {
-      children: [
-        /* @__PURE__ */ jsx(SectionHeader, {
-          eyebrow: "Nuestra colección",
-          subtitle: "Cada fragancia es una obra de arte creada para despertar emociones únicas."
-        }),
-        /* @__PURE__ */ jsx("div", {
-          className: "grid gap-8 md:grid-cols-2 xl:grid-cols-3",
-          children: PRODUCTS.map((product) => /* @__PURE__ */ jsx(ProductCard, { product }, product.id))
-        }),
-        /* @__PURE__ */ jsx("div", {
-          className: "mt-10 flex justify-center",
-          children: /* @__PURE__ */ jsxs("button", {
-            onClick: onLogin,
-            className: "inline-flex items-center gap-2 rounded-full border border-[#C9A227]/60 bg-[#C9A227]/10 px-6 py-3 text-sm font-medium text-[#f5f1ea] transition hover:bg-[#C9A227] hover:text-[#0b0d10]",
-            children: [
-              "Ver catálogo completo",
-              /* @__PURE__ */ jsx(ArrowRight, { className: "h-4 w-4" })
-            ]
-          })
-        })
-      ]
-    })
-  });
+  const [products, setProducts] = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    cargarProductos()
+      .then((lista) => {
+        if (!vivo) return;
+        const visibles = lista
+          .filter((p) => p.active && p.inStock)
+          .sort((a, b) => Number(Boolean(b.image)) - Number(Boolean(a.image)) || b.id - a.id)
+          .slice(0, 6);
+        setProducts(visibles);
+      })
+      .catch(() => vivo && setProducts([]));
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  return (
+    <section id="catalogo" className="mx-auto max-w-7xl px-4 py-24 md:px-8">
+      <SectionHeader eyebrow="Nuestra colección" subtitle="Cada fragancia es una obra de arte creada para despertar emociones únicas." />
+      {products === null ? (
+        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-[30rem] animate-pulse rounded-[28px] border border-white/10 bg-[#121417]" />
+          ))}
+        </div>
+      ) : products.length === 0 ? (
+        <p className="text-center text-[#d9d2c8]/75">Muy pronto verás aquí nuestras fragancias.</p>
+      ) : (
+        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} onLogin={onLogin} />
+          ))}
+        </div>
+      )}
+      <div className="mt-10 flex justify-center">
+        <button
+          onClick={onLogin}
+          className="inline-flex items-center gap-2 rounded-full border border-[#C9A227]/60 bg-[#C9A227]/10 px-6 py-3 text-sm font-medium text-[#f5f1ea] transition hover:bg-[#C9A227] hover:text-[#0b0d10]"
+        >
+          Ver catálogo completo
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+    </section>
+  );
 }
-export {
-  Catalog
-};
+
+export { Catalog };

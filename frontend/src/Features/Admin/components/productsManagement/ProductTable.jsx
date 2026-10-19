@@ -7,6 +7,7 @@ import { Switch } from "../../../../shared/components/ui/switch";
 import { Pagination } from "../../../../shared/components/ui/Pagination";
 import { cn } from "../../../../shared/utils/cn";
 import { useAuth } from "../../../../shared/auth";
+import { dinero } from "../../../../shared/negocio";
 function ProductTable({
   products,
   currentPage,
@@ -49,10 +50,14 @@ function ProductTable({
           children: [/* @__PURE__ */jsx(TableCell, {
             children: /* @__PURE__ */jsxs("div", {
               className: "flex items-center gap-3",
-              children: [/* @__PURE__ */jsx("img", {
-                src: product.images[0],
+              children: [product.image ? /* @__PURE__ */jsx("img", {
+                src: product.image,
                 alt: product.name,
+                loading: "lazy",
                 className: "h-10 w-10 rounded-lg object-cover"
+              }) : /* @__PURE__ */jsx("div", {
+                className: "flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground",
+                children: "—"
               }), /* @__PURE__ */jsxs("div", {
                 children: [/* @__PURE__ */jsx("p", {
                   className: "font-semibold text-foreground",
@@ -71,7 +76,7 @@ function ProductTable({
           }), /* @__PURE__ */jsx(TableCell, {
             children: product.category
           }), /* @__PURE__ */jsxs(TableCell, {
-            children: ["$", product.price]
+            children: dinero(product.price)
           }), /* @__PURE__ */jsx(TableCell, {
             className: "w-[1%] whitespace-nowrap",
             children: /* @__PURE__ */jsxs("div", {
@@ -105,18 +110,24 @@ function ProductTable({
               children: [/* @__PURE__ */jsx("button", {
                 className: "h-8 w-8 rounded-lg hover:bg-muted transition-colors flex items-center justify-center",
                 onClick: () => onView(product),
+                title: "Ver",
+                "aria-label": `Ver ${product.name}`,
                 children: /* @__PURE__ */jsx(Eye, {
                   className: "h-4 w-4 text-muted-foreground"
                 })
               }), can("products.edit") && /* @__PURE__ */jsx("button", {
                 className: "h-8 w-8 rounded-lg hover:bg-muted transition-colors flex items-center justify-center",
                 onClick: () => onEdit(product),
+                title: "Editar",
+                "aria-label": `Editar ${product.name}`,
                 children: /* @__PURE__ */jsx(Edit, {
                   className: "h-4 w-4 text-primary"
                 })
               }), can("products.delete") && /* @__PURE__ */jsx("button", {
                 className: "h-8 w-8 rounded-lg hover:bg-destructive/10 transition-colors flex items-center justify-center",
                 onClick: () => onDelete(product),
+                title: "Eliminar",
+                "aria-label": `Eliminar ${product.name}`,
                 children: /* @__PURE__ */jsx(Trash2, {
                   className: "h-4 w-4 text-destructive"
                 })

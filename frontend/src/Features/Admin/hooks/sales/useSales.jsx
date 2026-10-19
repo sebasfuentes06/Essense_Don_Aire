@@ -1,271 +1,200 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "../../../../shared/auth";
-const mockSales = [
-  {
-    id: 1, folio: "VTA-001", date: "2024-06-01", customer: "Ana Mart\xEDnez",
-    seller: "Carlos Vendedor", items: [
-      { productId: 1, productName: "Essence Royale", quantity: 2, unitPrice: 89.99, discount: 0 }
-    ],
-    subtotal: 179.98,
-    discount: 0,
-    total: 179.98, paymentMethod: "card", status: "completed"
-  },
-  {
-    id: 2, folio: "VTA-002", date: "2024-06-01", customer: "Carlos Rodr\xEDguez",
-    seller: "Mar\xEDa Vendedora", items: [
-      { productId: 3, productName: "Golden Mist", quantity: 1, unitPrice: 79.99, discount: 0 }
-    ],
-    subtotal: 79.99,
-    discount: 0,
-    total: 79.99, paymentMethod: "cash", status: "completed"
-  },
-  {
-    id: 3, folio: "VTA-003", date: "2024-05-31", customer: "Mar\xEDa Gonz\xE1lez",
-    seller: "Carlos Vendedor", items: [
-      { productId: 1, productName: "Essence Royale", quantity: 3, unitPrice: 89.99, discount: 15 }
-    ],
-    subtotal: 269.97,
-    discount: 40.5,
-    total: 229.47, paymentMethod: "transfer", status: "completed"
-  },
-  {
-    id: 4, folio: "VTA-004", date: "2024-05-30", customer: "Luis Hern\xE1ndez",
-    seller: "Mar\xEDa Vendedora", items: [
-      { productId: 2, productName: "Noir Elegance", quantity: 2, unitPrice: 74.99, discount: 0 }
-    ],
-    subtotal: 149.98,
-    discount: 0,
-    total: 149.98, paymentMethod: "mixed", status: "cancelled"
-  },
-  {
-    id: 5, folio: "VTA-005", date: "2024-06-02", customer: "Laura Cliente",
-    seller: "Carlos Vendedor", items: [
-      { productId: 4, productName: "Velvet Rose", quantity: 2, unitPrice: 69.99, discount: 0 },
-      { productId: 5, productName: "Ocean Breeze", quantity: 1, unitPrice: 64.99, discount: 0 }
-    ],
-    subtotal: 204.97,
-    discount: 0,
-    total: 204.97, paymentMethod: "cash", status: "completed"
-  }
-];
-const mockSellers = ["Carlos Vendedor", "Mar\xEDa Vendedora", "Admin Principal"];
+import { ventas, pagos } from "../../../../shared/negocio";
+
 const sortOptions = [
   { value: "date", label: "Fecha" },
-  { value: "folio", label: "Folio" },
-  { value: "customer", label: "Cliente" },
-  { value: "total", label: "Total" }
+  { value: "total", label: "Total" },
+  { value: "balance", label: "Saldo" },
+  { value: "customer", label: "Cliente" }
 ];
-const initialSaleForm = {
-  id_cliente: "",
-  id_usuario: "",
-  fecha_venta: new Date().toISOString().slice(0, 10),
-  id_metodo_pago: 1,
-  total: "",
-  customer: "",
-  seller: "",
-  date: new Date().toISOString().slice(0, 10),
-  paymentMethod: "cash"
-};
+
+/**
+ * Ventas contra la API de la app móvil. Una venta descuenta stock y genera
+ * factura; el método de pago es obligatorio. Solo el Administrador anula.
+ */
 function useSales() {
-  const [sales, setSales] = useState(mockSales);
+  const { user, can } = useAuth();
+  const isAdmin = user?.role === "Administrador";
+
+  const [all, setAll] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [sortDirection, setSortDirection] = useState("desc");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sellerFilter, setSellerFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const [detailSale, setDetailSale] = useState(null);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [saleToCancel, setSaleToCancel] = useState(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [saleToDelete, setSaleToDelete] = useState(null);
-  const [isSaleFormOpen, setIsSaleFormOpen] = useState(false);
-  const [saleForm, setSaleForm] = useState(initialSaleForm);
-  const { user, can } = useAuth();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [cancellingSale, setCancellingSale] = useState(null);
+  const [payingSale, setPayingSale] = useState(null);
 
-  // El Vendedor tiene el permiso "sales.own": su historial se limita a las
-  // ventas donde el es el vendedor. El Administrador no lo tiene y ve todas.
-  const onlyOwn = can("sales.own");
-  const visibleSales = onlyOwn
-    ? sales.filter((sale) => sale.seller === user?.name)
-    : sales;
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      setAll(await ventas.listar());
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  const filtered = visibleSales.filter((s) => {
-    const matchSearch = s.folio.toLowerCase().includes(searchQuery.toLowerCase()) || s.customer.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchStatus = statusFilter === "all" || s.status === statusFilter;
-    const matchSeller = sellerFilter === "all" || s.seller === sellerFilter;
-    return matchSearch && matchStatus && matchSeller;
-  });
-  const sorted = [...filtered].sort((a, b) => {
-    const aValue = typeof a[sortBy] === "string" ? a[sortBy].toLowerCase() : a[sortBy];
-    const bValue = typeof b[sortBy] === "string" ? b[sortBy].toLowerCase() : b[sortBy];
-    return sortDirection === "asc" ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
-  });
-  const totalPages = Math.ceil(sorted.length / itemsPerPage);
-  const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const totalRevenue = visibleSales.filter((s) => s.status === "completed").reduce((sum, s) => sum + s.total, 0);
-  const avgTicket = visibleSales.filter((s) => s.status === "completed").length > 0 ? totalRevenue / visibleSales.filter((s) => s.status === "completed").length : 0;
-  const completedCount = visibleSales.filter((s) => s.status === "completed").length;
-  const todayCount = visibleSales.filter((s) => s.date === "2024-06-01").length;
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
-  };
-  const handleStatusFilterChange = (value) => {
-    setStatusFilter(value);
-    setCurrentPage(1);
-  };
-  const handleSellerFilterChange = (value) => {
-    setSellerFilter(value);
-    setCurrentPage(1);
-  };
-  const handleViewDetail = (sale) => {
-    setDetailSale(sale);
-  };
-  const handleNewSale = () => {
-    setSaleForm(initialSaleForm);
-    setIsSaleFormOpen(true);
-  };
-  const handleCloseSaleForm = () => {
-    setIsSaleFormOpen(false);
-    setSaleForm(initialSaleForm);
-  };
-  const handleSaveSale = () => {
-    const customerName = String(saleForm.customer ?? saleForm.id_cliente ?? "").trim();
-    const sellerName = String(saleForm.seller ?? saleForm.id_usuario ?? "").trim();
-    const metodoPago = Number(saleForm.id_metodo_pago ?? saleForm.paymentMethod ?? 0);
-    const fechaVenta = saleForm.fecha_venta ?? saleForm.date ?? "";
-    const total = Number(saleForm.total ?? 0);
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
-    if (!customerName) {
-      alert("Debe indicar un cliente válido.");
-      return;
-    }
-    if (!sellerName) {
-      alert("Debe seleccionar un vendedor válido.");
-      return;
-    }
-    if (!fechaVenta) {
-      alert("Debe indicar una fecha.");
-      return;
-    }
-    if (!metodoPago || metodoPago <= 0) {
-      alert("Debe seleccionar un método de pago.");
-      return;
-    }
-    if (!total || total <= 0) {
-      alert("El total debe ser mayor a 0.");
-      return;
-    }
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const lista = all.filter((v) => {
+      if (statusFilter === "anulada" && v.status !== "anulada") return false;
+      if (["pendiente", "parcial", "pagada"].includes(statusFilter) && (v.status === "anulada" || v.paymentStatus !== statusFilter)) return false;
+      if (channelFilter !== "all" && v.channel !== channelFilter) return false;
+      if (!q) return true;
+      return [v.invoice, v.customer, v.orderCode, v.seller].some((x) => String(x ?? "").toLowerCase().includes(q));
+    });
+    const dir = sortDirection === "desc" ? -1 : 1;
+    return lista.sort((a, b) => {
+      if (sortBy === "date") return (new Date(a.date) - new Date(b.date)) * dir;
+      const x = a[sortBy];
+      const y = b[sortBy];
+      if (typeof x === "number") return (x - y) * dir;
+      return String(x ?? "").localeCompare(String(y ?? ""), "es") * dir;
+    });
+  }, [all, searchQuery, statusFilter, channelFilter, sortBy, sortDirection]);
 
-    const nextId = Math.max(0, ...sales.map((sale) => sale.id)) + 1;
-    const nextFolio = `VTA-${String(nextId).padStart(3, "0")}`;
-    const payload = {
-      id_cliente: customerName,
-      id_usuario: sellerName,
-      fecha_venta: fechaVenta,
-      id_metodo_pago: metodoPago,
-      total,
-      date: saleForm.date ?? saleForm.fecha_venta,
-      customer: customerName,
-      seller: sellerName,
-      paymentMethod: saleForm.paymentMethod ?? saleForm.id_metodo_pago ?? "cash",
-      status: "completed",
-      items: []
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const stats = useMemo(() => {
+    const vigentes = all.filter((v) => v.status !== "anulada");
+    const hoy = new Date();
+    const delMes = vigentes.filter((v) => {
+      const d = new Date(v.date);
+      return d.getMonth() === hoy.getMonth() && d.getFullYear() === hoy.getFullYear();
+    });
+    return {
+      count: vigentes.length,
+      monthTotal: delMes.reduce((s, v) => s + v.total, 0),
+      monthCount: delMes.length,
+      balance: vigentes.reduce((s, v) => s + v.balance, 0),
+      withBalance: vigentes.filter((v) => v.balance > 0).length,
+      cancelled: all.length - vigentes.length
     };
-    setSales([...sales, {
-      id: nextId,
-      folio: nextFolio,
-      subtotal: total,
-      discount: 0,
-      ...payload
-    }]);
-    handleCloseSaleForm();
+  }, [all]);
+
+  const reset = (fn) => (v) => {
+    fn(v);
+    setCurrentPage(1);
   };
-  const handleCloseDetail = () => {
-    setDetailSale(null);
-  };
-  const handleCancel = (sale) => {
-    setSaleToCancel(sale);
-    setCancelDialogOpen(true);
-  };
-  const closeCancelDialog = () => {
-    setCancelDialogOpen(false);
-    setSaleToCancel(null);
-  };
-  const confirmCancel = () => {
-    if (saleToCancel) {
-      setSales(sales.map((s) => s.id === saleToCancel.id ? { ...s, status: "cancelled" } : s));
-      setCancelDialogOpen(false);
-      setSaleToCancel(null);
+
+  /** Abre el detalle (con productos, pagos y links de Wompi). */
+  const openDetail = async (sale) => {
+    setDetailSale(sale);
+    try {
+      setDetailSale(await ventas.obtener(sale.id));
+    } catch (e) {
+      toast.error(e.message);
     }
   };
-  const handleDelete = (sale) => {
-    setSaleToDelete(sale);
-    setDeleteDialogOpen(true);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setSaleToDelete(null);
-  };
-  const confirmDelete = () => {
-    if (saleToDelete) {
-      setSales(sales.filter((sale) => sale.id !== saleToDelete.id));
-      closeDeleteDialog();
+
+  const refreshDetail = async (id) => {
+    await reload();
+    try {
+      setDetailSale(await ventas.obtener(id));
+    } catch {
+      /* el detalle se queda con lo que tenía */
     }
   };
+
+  const createSale = async (body) => {
+    const { venta, mensaje } = await ventas.crear(body);
+    toast.success(mensaje || "Venta registrada.");
+    setIsFormOpen(false);
+    await reload();
+    openDetail(venta);
+  };
+
+  const confirmCancel = async (motivo) => {
+    const { mensaje } = await ventas.anular(cancellingSale.id, motivo);
+    toast.success(mensaje || "Venta anulada.");
+    const id = cancellingSale.id;
+    setCancellingSale(null);
+    if (detailSale?.id === id) await refreshDetail(id);
+    else await reload();
+  };
+
+  const savePayment = async (body) => {
+    const { mensaje } = await pagos.registrar(body);
+    toast.success(mensaje || "Abono registrado.");
+    const id = payingSale.id;
+    setPayingSale(null);
+    if (detailSale?.id === id) await refreshDetail(id);
+    else await reload();
+  };
+
+  const createWompiLink = async (sale) => {
+    try {
+      const link = await pagos.linkWompi(sale.id);
+      try {
+        await navigator.clipboard.writeText(link.url);
+        toast.success("Link de Wompi creado y copiado. Compártelo con el cliente.");
+      } catch {
+        toast.success("Link de Wompi creado.");
+      }
+      await refreshDetail(sale.id);
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
   return {
-    sales: visibleSales,
-    sellers: onlyOwn ? [user?.name].filter(Boolean) : mockSellers,
-    onlyOwn,
+    isAdmin,
+    canCreate: can("sales.create"),
+    all,
+    isLoading,
+    error,
+    reload,
+    filtered,
+    paginated,
+    stats,
+    sortOptions,
     searchQuery,
-    currentPage,
-    setCurrentPage,
-    itemsPerPage,
-    setItemsPerPage,
+    handleSearchChange: reset(setSearchQuery),
+    statusFilter,
+    handleStatusFilterChange: reset(setStatusFilter),
+    channelFilter,
+    handleChannelFilterChange: reset(setChannelFilter),
     sortBy,
     setSortBy,
     sortDirection,
     setSortDirection,
-    statusFilter,
-    sellerFilter,
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage: reset((v) => setItemsPerPage(Number(v))),
+    totalPages,
     detailSale,
     setDetailSale,
-    deleteDialogOpen,
-    saleToDelete,
-    isSaleFormOpen,
-    saleForm,
-    setSaleForm,
-    cancelDialogOpen,
-    saleToCancel,
-    filtered,
-    sorted,
-    sortOptions,
-    totalPages,
-    paginated,
-    totalRevenue,
-    avgTicket,
-    completedCount,
-    todayCount,
-    handleSearchChange,
-    handleStatusFilterChange,
-    handleSellerFilterChange,
-    handleViewDetail,
-    handleNewSale,
-    handleCloseSaleForm,
-    handleSaveSale,
-    handleCloseDetail,
-    handleCancel,
-    closeCancelDialog,
+    openDetail,
+    isFormOpen,
+    setIsFormOpen,
+    createSale,
+    cancellingSale,
+    setCancellingSale,
     confirmCancel,
-    handleDelete,
-    closeDeleteDialog,
-    confirmDelete
+    payingSale,
+    setPayingSale,
+    savePayment,
+    createWompiLink
   };
 }
-export {
-  useSales,
-  mockSales,
-  mockSellers
-};
+
+export { useSales };

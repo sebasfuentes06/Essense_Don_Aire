@@ -1,130 +1,114 @@
-import { jsx, jsxs } from "react/jsx-runtime";
-import { Plus } from "lucide-react";
+import { AlertCircle, Plus, RefreshCw } from "lucide-react";
 import { Button } from "../../../../shared/components/ui/button";
 import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
 import { ExportButton, PrintButton } from "../../../../shared/components/ui/ExportButton";
+import { useAuth } from "../../../../shared/auth";
 import { useCustomers } from "../../hooks/customers";
 import { CustomerStats, CustomerFilters, CustomerTable, CustomerFormModal, CustomerDetailModal } from "../../components/customers";
-import { useAuth } from "../../../../shared/auth";
 
 const customerColumns = [
   { key: "name", header: "Cliente" },
+  { key: "documentType", header: "Tipo doc." },
+  { key: "document", header: "Documento" },
+  { key: "phone", header: "Celular" },
   { key: "email", header: "Correo" },
-  { key: "phone", header: "Teléfono" },
-  { key: "city", header: "Ciudad" },
+  { key: "city", header: "Municipio" },
   { key: "address", header: "Dirección" },
-  { key: "totalPurchases", header: "Compras", format: "number" },
-  { key: "totalSpent", header: "Total gastado", format: "money" },
-  { header: "Estado", value: (row) => (row.status === "active" ? "Activo" : "Inactivo") },
-  { key: "joinDate", header: "Registro", format: "date" },
+  { key: "purchases", header: "Compras", format: "number" },
+  { key: "balance", header: "Saldo", format: "money" },
+  { header: "Estado", value: (row) => (row.active ? "Activo" : "Inactivo") },
   { key: "lastPurchase", header: "Última compra", format: "date" }
 ];
 
+/** Clientes: misma ficha y estado de cuenta que en la app móvil. */
 function Customers() {
   const { can } = useAuth();
+  const c = useCustomers();
 
-  const {
-    customers,
-    sortOptions,
-    paginatedCustomers,
-    totalPages,
-    sortedCustomers,
-    searchQuery,
-    currentPage,
-    itemsPerPage,
-    sortBy,
-    sortDirection,
-    statusFilter,
-    isModalOpen,
-    selectedCustomer,
-    viewMode,
-    customerForm,
-    deleteDialogOpen,
-    customerToDelete,
-    setCurrentPage,
-    setItemsPerPage,
-    setSortBy,
-    setSortDirection,
-    handleDelete,
-    confirmDelete,
-    handleEdit,
-    handleView,
-    handleNewCustomer,
-    handleSaveCustomer,
-    handleToggleStatus,
-    closeModal,
-    closeDeleteDialog,
-    handleSearchChange,
-    handleStatusFilterChange,
-    updateCustomerFormField
-  } = useCustomers();
-  return /* @__PURE__ */jsxs("div", {
-    className: "space-y-6",
-    children: [/* @__PURE__ */jsxs("div", {
-      className: "flex flex-col md:flex-row md:items-center md:justify-between gap-4",
-      children: [/* @__PURE__ */jsxs("div", {
-        children: [/* @__PURE__ */jsx("h1", {
-          className: "text-4xl font-bold text-foreground mb-2",
-          children: "Clientes"
-        }), /* @__PURE__ */jsx("p", {
-          className: "text-muted-foreground",
-          children: "Gestiona tu base de clientes"
-        })]
-      }), /* @__PURE__ */jsxs("div", {
-        className: "flex gap-3",
-        children: [/* @__PURE__ */jsx(ExportButton, {
-          name: "clientes",
-          rows: sortedCustomers,
-          columns: customerColumns
-        }), /* @__PURE__ */jsx(PrintButton, {}), can("customers.create") && /* @__PURE__ */jsxs(Button, {
-          onClick: handleNewCustomer,
-          children: [/* @__PURE__ */jsx(Plus, {
-            className: "h-5 w-5"
-          }), "Nuevo Cliente"]
-        })]
-      })]
-    }), /* @__PURE__ */jsx(CustomerStats, {
-      customers
-    }), /* @__PURE__ */jsx(CustomerFilters, {
-      searchQuery,
-      onSearchChange: handleSearchChange,
-      statusFilter,
-      onStatusFilterChange: handleStatusFilterChange,
-      sortBy,
-      onSortByChange: setSortBy,
-      sortOptions,
-      sortDirection,
-      onSortDirectionChange: setSortDirection,
-      itemsPerPage,
-      onItemsPerPageChange: setItemsPerPage
-    }), /* @__PURE__ */jsx(CustomerTable, {
-      customers: paginatedCustomers,
-      currentPage,
-      totalPages,
-      totalItems: sortedCustomers.length,
-      itemsPerPage,
-      onPageChange: setCurrentPage,
-      onView: handleView,
-      onToggleStatus: handleToggleStatus,
-      onEdit: handleEdit,
-      onDelete: handleDelete
-    }), viewMode === "details" ? /* @__PURE__ */jsx(CustomerDetailModal, {
-      isOpen: isModalOpen,
-      onClose: closeModal,
-      customerForm
-    }) : /* @__PURE__ */jsx(CustomerFormModal, {
-      isOpen: isModalOpen,
-      onClose: closeModal,
-      isEditing: Boolean(selectedCustomer),
-      customerForm,
-      onFieldChange: updateCustomerFormField,
-      onSave: handleSaveCustomer
-    }), /* @__PURE__ */jsx(DeleteDialog, {
-      isOpen: deleteDialogOpen,
-      onClose: closeDeleteDialog,
-      onConfirm: confirmDelete,
-      itemName: customerToDelete?.name
-    })]
-  });
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="mb-2 text-4xl font-bold text-foreground">Clientes</h1>
+          <p className="text-muted-foreground">Fichas de clientes, su historial de compras y lo que deben</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <ExportButton name="clientes" rows={c.filtered} columns={customerColumns} />
+          <PrintButton />
+          {can("customers.create") && (
+            <Button onClick={c.openNew}>
+              <Plus className="h-5 w-5" /> Nuevo cliente
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <CustomerStats stats={c.stats} />
+
+      <CustomerFilters
+        searchQuery={c.searchQuery}
+        onSearchChange={c.handleSearchChange}
+        statusFilter={c.statusFilter}
+        onStatusFilterChange={c.handleStatusFilterChange}
+        balanceFilter={c.balanceFilter}
+        onBalanceFilterChange={c.handleBalanceFilterChange}
+        sortBy={c.sortBy}
+        onSortByChange={c.setSortBy}
+        sortOptions={c.sortOptions}
+        sortDirection={c.sortDirection}
+        onSortDirectionChange={c.setSortDirection}
+        itemsPerPage={c.itemsPerPage}
+        onItemsPerPageChange={c.setItemsPerPage}
+      />
+
+      {c.loadError ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+          <AlertCircle className="h-8 w-8 text-destructive" />
+          <p className="text-sm text-destructive">{c.loadError}</p>
+          <Button variant="outline" onClick={c.reload}>
+            <RefreshCw /> Reintentar
+          </Button>
+        </div>
+      ) : c.isLoading && c.all.length === 0 ? (
+        <div className="p-12 text-center text-muted-foreground">Cargando clientes…</div>
+      ) : (
+        <CustomerTable
+          customers={c.paginated}
+          currentPage={c.currentPage}
+          totalPages={c.totalPages}
+          totalItems={c.filtered.length}
+          itemsPerPage={c.itemsPerPage}
+          onPageChange={c.setCurrentPage}
+          onView={c.setViewingCustomer}
+          onToggleStatus={c.toggleStatus}
+          onEdit={c.openEdit}
+          onDelete={c.setDeletingCustomer}
+        />
+      )}
+
+      <CustomerFormModal
+        key={c.editingCustomer?.id ?? "nuevo"}
+        isOpen={c.isFormOpen}
+        onClose={c.closeForm}
+        isEditing={Boolean(c.editingCustomer)}
+        form={c.form}
+        onFormChange={c.setForm}
+        serverErrors={c.formErrors}
+        serverError={c.formError}
+        onSave={c.save}
+      />
+
+      <CustomerDetailModal customer={c.viewingCustomer} onClose={() => c.setViewingCustomer(null)} />
+
+      <DeleteDialog
+        isOpen={Boolean(c.deletingCustomer)}
+        onClose={() => c.setDeletingCustomer(null)}
+        onConfirm={c.confirmDelete}
+        itemName={c.deletingCustomer?.name}
+        description="Si el cliente tiene ventas o pedidos no se puede eliminar; en ese caso desactívalo."
+      />
+    </div>
+  );
 }
+
 export { Customers };

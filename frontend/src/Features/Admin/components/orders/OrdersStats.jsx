@@ -1,4 +1,5 @@
 import { ClipboardList, Clock, CheckCircle2, DollarSign } from "lucide-react";
+import { dinero } from "../../../../shared/negocio";
 import { Card } from "../../../../shared/components/ui/Card";
 
 function OrdersStats({ stats }) {
@@ -6,7 +7,7 @@ function OrdersStats({ stats }) {
     { label: "Pedidos", value: stats.totalOrders, icon: ClipboardList },
     { label: "Pendientes", value: stats.pendingCount, icon: Clock },
     { label: "Confirmados", value: stats.confirmedCount, icon: CheckCircle2 },
-    { label: "Valor pendiente", value: `$${stats.pendingValue.toFixed(2)}`, icon: DollarSign }
+    { label: "Valor pendiente", value: dinero(stats.pendingValue), icon: DollarSign }
   ];
 
   return (

@@ -25,11 +25,10 @@ function UserFilters({
   // sigue sirviendo igual donde no se use.
   const mostrarRoles = typeof onRoleFilterChange === "function";
 
-  // Los clientes tienen su propio módulo, así que no se ofrecen aquí.
   const opcionesRol = [
     { value: "Todos", label: "Todos los roles" },
     ...roleOptions
-      .filter((rol) => (rol.name ?? rol) !== "Cliente")
+      .filter((rol) => (rol.name ?? rol) !== "Todos")
       .map((rol) => ({ value: rol.name ?? rol, label: rol.name ?? rol }))
   ];
 

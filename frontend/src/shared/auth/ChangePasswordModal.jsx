@@ -54,7 +54,7 @@ function ChangePasswordModal({ isOpen, onClose }) {
 
     setEnviando(true);
     try {
-      await api.patch("/auth/password", { actual, nueva, confirmacion });
+      await api.put("/auth/password", { actual, nueva });
       setListo(true);
       setActual("");
       setNueva("");

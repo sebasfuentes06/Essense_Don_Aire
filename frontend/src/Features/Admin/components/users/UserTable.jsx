@@ -1,4 +1,4 @@
-import { Edit, Eye, Trash2, Mail, Phone, Calendar } from "lucide-react";
+import { Edit, Eye, Mail, Phone, Calendar } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
 import {
   Table,
@@ -29,7 +29,6 @@ function UserTable({
   onPageChange,
   onShowDetail,
   onEdit,
-  onDelete,
   onToggleStatus
 }) {
   return (
@@ -42,7 +41,7 @@ function UserTable({
             <TableHead>Teléfono</TableHead>
             <TableHead>Rol</TableHead>
             <TableHead>Último Acceso</TableHead>
-            <TableHead>Ingreso</TableHead>
+            <TableHead>Registro</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead className="w-[1%] text-right">Acciones</TableHead>
           </TableRow>
@@ -83,9 +82,10 @@ function UserTable({
                   {user.phone || "—"}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={user.role === "Administrador" ? "danger" : "default"}>
+                  <Badge variant={user.role === "Administrador" ? "danger" : user.role === "Vendedor" ? "info" : "default"}>
                     {user.role}
                   </Badge>
+                  {user.customerName && <p className="mt-1 text-xs text-muted-foreground">Ficha: {user.customerName}</p>}
                 </TableCell>
                 <TableCell>{formatearFecha(user.lastLogin, "Nunca")}</TableCell>
                 <TableCell className="whitespace-nowrap">
@@ -131,16 +131,6 @@ function UserTable({
                       aria-label={`Editar ${user.name}`}
                     >
                       <Edit className="h-4 w-4 text-primary" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={esMiCuenta}
-                      className="h-8 w-8 rounded-lg hover:bg-destructive/10 transition-colors flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                      onClick={() => onDelete(user)}
-                      title={esMiCuenta ? "No puedes eliminar tu propia cuenta" : "Eliminar"}
-                      aria-label={`Eliminar ${user.name}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
                     </button>
                   </div>
                 </TableCell>

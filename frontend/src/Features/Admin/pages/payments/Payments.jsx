@@ -1,6 +1,7 @@
-import { Wallet, ArrowRight } from "lucide-react";
-import { Card } from "../../../../shared/components/ui/Card";
-import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
+import { useMemo } from "react";
+import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { Button } from "../../../../shared/components/ui/button";
+import { MotivoDialog } from "../../../../shared/negocio";
 import { cn } from "../../../../shared/utils/cn";
 import { usePayments } from "../../hooks/payments";
 import {
@@ -8,173 +9,175 @@ import {
   PaymentsStats,
   PaymentsFiltersBar,
   PaymentsTable,
-  AccountStatementTable,
-  AccountStatementModal,
+  CarteraTable,
+  ClientOpenSales,
+  PaymentDetailModal,
   PaymentFormModal
 } from "../../components/payments";
 
-const TABS = [
-  { id: "abonos", label: "Abonos registrados" },
-  { id: "cuenta", label: "Estado de cuenta" }
-];
-
 /**
- * Módulo Pagos y Abonos.
- * Administrador y Vendedor alternan entre el listado de abonos y el estado
- * de cuenta por cliente. El Cliente ve una versión de solo lectura con su
- * propio saldo y sus abonos.
+ * Módulo Pagos, conectado a la API de la app móvil.
+ * Equipo: Por aprobar · Cartera · Historial. Cliente: Por pagar · Mis pagos.
  */
 function Payments() {
-  const {
-    tab, setTab,
-    onlyOwn, isClient,
-    payments, allFilteredPayments, statements, payableSales, stats, sortOptions,
-    searchQuery, handleSearchChange,
-    methodFilter, handleMethodFilterChange,
-    statusFilter, handleStatusFilterChange,
-    sortBy, setSortBy,
-    sortDirection, setSortDirection,
-    currentPage, setCurrentPage,
-    itemsPerPage, setItemsPerPage,
-    totalPages,
-    isFormOpen, form, setForm, formError,
-    handleNewPayment, handleCloseForm, handleSavePayment,
-    statementCustomer, setStatementCustomer, getStatement,
-    deleteDialogOpen, paymentToDelete, closeDeleteDialog,
-    handleDeleteRequest, confirmDelete
-  } = usePayments();
+  const p = usePayments();
 
-  const activeTab = isClient ? "abonos" : tab;
-  const myStatement = isClient ? statements[0] ?? null : null;
+  const tabs = p.isClient
+    ? [
+        { id: "saldos", label: "Por pagar", count: p.openSales.length },
+        { id: "historial", label: "Mis pagos" }
+      ]
+    : [
+        { id: "por_aprobar", label: "Por aprobar", count: p.porAprobar.length },
+        { id: "cartera", label: "Cartera", count: p.cartera?.cantidad_ventas },
+        { id: "historial", label: "Historial" }
+      ];
+
+  // Lo que el cliente ya reportó y sigue en revisión, por venta.
+  const pendingBySale = useMemo(() => {
+    const m = {};
+    for (const x of p.porAprobar) m[x.saleId] = (m[x.saleId] ?? 0) + x.amount;
+    return m;
+  }, [p.porAprobar]);
+
+  const tablaComun = {
+    isClient: p.isClient,
+    isAdmin: p.isAdmin,
+    onView: p.setViewingPayment,
+    onApprove: p.approve,
+    onReject: p.setRejectingPayment
+  };
+
+  let contenido;
+  if (p.error) {
+    contenido = (
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-sm text-destructive">{p.error}</p>
+        <Button variant="outline" onClick={p.reload}>
+          <RefreshCw /> Reintentar
+        </Button>
+      </div>
+    );
+  } else if (p.isLoading && p.payments.length === 0 && !p.cartera && p.openSales.length === 0) {
+    contenido = (
+      <div className="flex items-center justify-center gap-2 p-12 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" /> Cargando pagos…
+      </div>
+    );
+  } else if (p.tab === "saldos") {
+    contenido = (
+      <ClientOpenSales
+        sales={p.openSales}
+        pendingBySale={pendingBySale}
+        onWompi={p.payWithWompi}
+        onReport={p.setPayingSale}
+        wompiBusy={p.wompiBusy}
+      />
+    );
+  } else if (p.tab === "por_aprobar") {
+    contenido = (
+      <PaymentsTable
+        {...tablaComun}
+        payments={p.porAprobar}
+        currentPage={1}
+        totalPages={1}
+        totalItems={p.porAprobar.length}
+        itemsPerPage={p.porAprobar.length || 1}
+        onPageChange={() => {}}
+        emptyTitle="No hay pagos por aprobar"
+        emptyText="Aquí llegan las transferencias que reportan los clientes, con su comprobante."
+      />
+    );
+  } else if (p.tab === "cartera") {
+    contenido = <CarteraTable cartera={p.cartera} onPay={p.setPayingSale} onWompi={p.payWithWompi} wompiBusy={p.wompiBusy} />;
+  } else {
+    contenido = (
+      <div className="space-y-4">
+        <PaymentsFiltersBar
+          searchQuery={p.searchQuery}
+          onSearchChange={p.handleSearchChange}
+          statusFilter={p.statusFilter}
+          onStatusFilterChange={p.handleStatusFilterChange}
+          methodFilter={p.methodFilter}
+          onMethodFilterChange={p.handleMethodFilterChange}
+          itemsPerPage={p.itemsPerPage}
+          onItemsPerPageChange={p.setItemsPerPage}
+        />
+        <PaymentsTable
+          {...tablaComun}
+          payments={p.paginated}
+          currentPage={p.currentPage}
+          totalPages={p.totalPages}
+          totalItems={p.filtered.length}
+          itemsPerPage={p.itemsPerPage}
+          onPageChange={p.setCurrentPage}
+          emptyText={p.isClient ? "Cuando pagues o reportes un pago, aparecerá aquí." : "Ajusta los filtros."}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <PaymentsHeader
-        onNewPayment={handleNewPayment}
-        rows={allFilteredPayments}
-        onlyOwn={onlyOwn}
-        isClient={isClient}
-      />
+      <PaymentsHeader isClient={p.isClient} rows={p.filtered} onRefresh={p.reload} isLoading={p.isLoading} />
 
-      <PaymentsStats stats={stats} isClient={isClient} />
+      <PaymentsStats stats={p.stats} isClient={p.isClient} />
 
-      {/* Resumen de saldo para el Cliente, con acceso al detalle */}
-      {isClient && myStatement && (
-        <Card>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <Wallet className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">
-                  {myStatement.balance > 0
-                    ? `Tienes un saldo pendiente de $${myStatement.balance.toFixed(2)}`
-                    : "Estás al día, no tienes saldo pendiente"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {myStatement.salesCount} {myStatement.salesCount === 1 ? "compra" : "compras"} ·{" "}
-                  {myStatement.openSales} con saldo
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setStatementCustomer(myStatement.customer)}
-              className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-lg border border-primary text-primary font-semibold transition-all hover:bg-primary/10"
-            >
-              Ver detalle
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </Card>
-      )}
-
-      {/* Pestañas: solo para quien gestiona cobros */}
-      {!isClient && (
-        <div className="flex gap-2 border-b border-border" data-no-print>
-          {TABS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              aria-pressed={activeTab === item.id}
-              className={cn(
-                "px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px",
-                activeTab === item.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div data-no-print={activeTab === "cuenta" ? "true" : undefined}>
-        <PaymentsFiltersBar
-          tab={activeTab}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          methodFilter={methodFilter}
-          onMethodFilterChange={handleMethodFilterChange}
-          statusFilter={statusFilter}
-          onStatusFilterChange={handleStatusFilterChange}
-          sortBy={sortBy}
-          onSortByChange={setSortBy}
-          sortDirection={sortDirection}
-          onSortDirectionChange={setSortDirection}
-          sortOptions={sortOptions}
-          itemsPerPage={itemsPerPage}
-          onItemsPerPageChange={setItemsPerPage}
-        />
+      <div className="flex gap-2 overflow-x-auto border-b border-border" data-no-print>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => p.setTab(t.id)}
+            aria-pressed={p.tab === t.id}
+            className={cn(
+              "-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              p.tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.label}
+            {t.count > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">{t.count}</span>}
+          </button>
+        ))}
       </div>
 
-      {activeTab === "abonos" ? (
-        <PaymentsTable
-          payments={payments}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={allFilteredPayments.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          isClient={isClient}
-          onDelete={handleDeleteRequest}
-        />
-      ) : (
-        <AccountStatementTable
-          statements={statements}
-          onViewDetail={setStatementCustomer}
-          onNewPayment={(statement) => {
-            const withBalance = statement.sales.find((sale) => sale.balance > 0);
-            handleNewPayment(withBalance);
-          }}
-        />
-      )}
+      {contenido}
 
-      <AccountStatementModal
-        statement={statementCustomer ? getStatement(statementCustomer) : null}
-        onClose={() => setStatementCustomer(null)}
+      <PaymentFormModal sale={p.payingSale} isClient={p.isClient} onClose={() => p.setPayingSale(null)} onSave={p.savePayment} />
+
+      <PaymentDetailModal
+        key={p.viewingPayment?.id ?? "none"}
+        payment={p.viewingPayment}
+        isClient={p.isClient}
+        isAdmin={p.isAdmin}
+        onClose={() => p.setViewingPayment(null)}
+        onApprove={p.approve}
+        onReject={p.setRejectingPayment}
+        onVoid={p.setVoidingPayment}
+        onUploadProof={p.uploadProof}
       />
 
-      <PaymentFormModal
-        isOpen={isFormOpen}
-        form={form}
-        onFormChange={setForm}
-        onSave={handleSavePayment}
-        onClose={handleCloseForm}
-        payableSales={payableSales}
-        error={formError}
+      <MotivoDialog
+        isOpen={Boolean(p.rejectingPayment)}
+        title="Rechazar pago"
+        description="El cliente verá el motivo y podrá reportar el pago de nuevo."
+        label="Motivo del rechazo"
+        confirmText="Rechazar"
+        danger
+        onConfirm={p.confirmReject}
+        onClose={() => p.setRejectingPayment(null)}
       />
 
-      <DeleteDialog
-        isOpen={deleteDialogOpen}
-        onClose={closeDeleteDialog}
-        onConfirm={confirmDelete}
-        title="¿Eliminar este abono?"
-        description="El monto volverá a quedar como saldo pendiente de la venta."
-        itemName={paymentToDelete?.folio}
+      <MotivoDialog
+        isOpen={Boolean(p.voidingPayment)}
+        title="Anular pago"
+        description="El monto vuelve a quedar como saldo pendiente de la venta."
+        label="Motivo de la anulación"
+        confirmText="Anular"
+        danger
+        onConfirm={p.confirmVoid}
+        onClose={() => p.setVoidingPayment(null)}
       />
     </div>
   );

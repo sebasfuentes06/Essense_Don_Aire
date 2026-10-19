@@ -120,30 +120,35 @@ function ProductFilters({
         children: /* @__PURE__ */jsxs("div", {
           className: "space-y-4",
           children: [/* @__PURE__ */jsx(Select, {
+            label: "Estado",
             value: statusFilter,
-            onChange: onStatusFilterChange,
+            onChange: e => onStatusFilterChange(e.target.value),
             options: [{
-              label: "Todos"
+              value: "all", label: "Todos"
             }, {
-              label: "Activo"
+              value: "active", label: "Activo"
             }, {
-              label: "Inactivo"
+              value: "inactive", label: "Inactivo"
             }]
           }), /* @__PURE__ */jsx(Select, {
+            label: "Stock",
             value: stockFilter,
-            onChange: onStockFilterChange,
+            onChange: e => onStockFilterChange(e.target.value),
             options: [{
-              label: "Todos"
+              value: "all", label: "Todos"
             }, {
-              label: "Stock Bajo"
+              value: "low", label: "Stock bajo"
             }, {
-              label: "Stock Normal"
+              value: "out", label: "Agotados"
+            }, {
+              value: "in", label: "Stock normal"
             }]
           }), /* @__PURE__ */jsx(Select, {
+            label: "Proveedor",
             value: supplierFilter,
-            onChange: onSupplierFilterChange,
+            onChange: e => onSupplierFilterChange(e.target.value),
             options: [{
-              label: "Todos"
+              value: "all", label: "Todos"
             }, ...suppliers.map(s => ({
               value: s,
               label: s
@@ -156,10 +161,14 @@ function ProductFilters({
               className: "grid grid-cols-2 gap-2",
               children: [/* @__PURE__ */jsx(Input, {
                 value: priceRange.min,
-                onChange: onPriceMinChange
+                placeholder: "Mínimo",
+                inputMode: "numeric",
+                onChange: e => onPriceMinChange(e.target.value.replace(/\D/g, ""))
               }), /* @__PURE__ */jsx(Input, {
                 value: priceRange.max,
-                onChange: onPriceMaxChange
+                placeholder: "Máximo",
+                inputMode: "numeric",
+                onChange: e => onPriceMaxChange(e.target.value.replace(/\D/g, ""))
               })]
             })]
           })]

@@ -10,21 +10,16 @@
 /**
  * A dónde se mandan las peticiones.
  *
- * En producción el frontend y la API viven en el MISMO dominio de Vercel
- * (/api lo atiende la función de api/index.js), así que basta una ruta
- * relativa: no hay que configurar ninguna variable, no hay CORS de por medio
- * y la dirección sigue siendo correcta aunque el proyecto cambie de nombre.
+ * La web usa la MISMA API que la app móvil (Node + Express + PostgreSQL en
+ * Vercel/Neon): un solo backend, los mismos datos en el celular y en la web.
+ * Así, un pedido que el cliente hace desde la app aparece en el panel web y
+ * al revés.
  *
- * En desarrollo, en cambio, Vite sirve en el 5173 y la API en el 4000, así
- * que sí hace falta la dirección completa.
- *
- * VITE_API_URL se respeta por encima de todo, por si alguna vez hay que
- * apuntar a una API distinta sin tocar el código.
+ * VITE_API_URL permite apuntar a otra API sin tocar el código, por ejemplo a
+ * la API corriendo en tu PC: VITE_API_URL=http://localhost:3000/api
  */
-const BASE_URL =
-  import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? "http://localhost:4000/api" : "/api");
-const TOKEN_KEY = "eda_token";
+const BASE_URL = (import.meta.env.VITE_API_URL ?? "https://api-proyecto-formativo.vercel.app/api").replace(/\/$/, "");
+const TOKEN_KEY = "eda_token_v2"; // v2: token de la API unificada (el viejo ya no sirve)
 
 /** Se dispara cuando la API responde 401: lo usa AuthContext para cerrar sesión. */
 let onUnauthorized = null;
@@ -101,16 +96,36 @@ async function request(path, { method = "GET", body, params, auth = true } = {})
 
   if (!response.ok) {
     if (response.status === 401) onUnauthorized?.();
-    throw new ApiError(payload?.error ?? `Error ${response.status} en la petición.`, {
+    throw new ApiError(payload?.error ?? payload?.mensaje ?? `Error ${response.status} en la petición.`, {
       status: response.status,
-      details: payload?.details
+      // La API responde los errores por campo en "detalles".
+      details: payload?.detalles ?? payload?.details
     });
   }
 
   return payload;
 }
 
+/**
+ * Trae TODAS las filas de un listado paginado de la API (de a 100), hasta
+ * `maximo`. Las tablas del panel filtran y ordenan en el navegador, así que
+ * necesitan la lista completa.
+ */
+async function todos(path, params = {}, { maximo = 2000 } = {}) {
+  const filas = [];
+  for (let page = 1; page <= 50; page++) {
+    const r = await request(path, { params: { ...params, page, limit: 100 } });
+    filas.push(...(r?.datos ?? []));
+    const totalPaginas = r?.paginacion?.totalPaginas ?? 1;
+    if (page >= totalPaginas || filas.length >= maximo) break;
+  }
+  return filas;
+}
+
 const api = {
+  todos,
+  /** Devuelve solo `datos` de la respuesta de la API ({ ok, datos }). */
+  datos: async (path, params, options) => (await request(path, { ...options, params }))?.datos,
   get: (path, params, options) => request(path, { ...options, params }),
   post: (path, body, options) => request(path, { ...options, method: "POST", body }),
   put: (path, body, options) => request(path, { ...options, method: "PUT", body }),

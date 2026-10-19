@@ -19,17 +19,17 @@ const ROLE_LIST = [
   {
     value: ROLES.ADMIN,
     label: "Administrador",
-    description: "Acceso completo a todos los modulos del sistema"
+    description: "Acceso completo a todos los módulos del sistema"
   },
   {
     value: ROLES.SELLER,
     label: "Vendedor",
-    description: "Ventas, catalogo, clientes y su dashboard personal"
+    description: "Ventas, pedidos, abonos, clientes y su dashboard personal"
   },
   {
     value: ROLES.CLIENT,
     label: "Cliente",
-    description: "Catalogo de productos y su cuenta personal"
+    description: "Catálogo, carrito, sus pedidos y sus pagos"
   }
 ];
 
@@ -59,21 +59,24 @@ const PERMISSIONS_BY_ROLE = {
     "purchases.view", "purchases.create", "purchases.edit", "purchases.delete",
     "customers.view", "customers.create", "customers.edit", "customers.delete", "customers.toggle",
     "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete", "suppliers.toggle",
-    "users.view", "users.create", "users.edit", "users.delete",
-    "roles.view", "roles.create", "roles.edit", "roles.delete",
+    "users.view", "users.create", "users.edit",
+    // Los roles son fijos (los de la API): solo se consultan.
+    "roles.view",
     "data.export",
     "profile.view", "profile.edit"
   ],
 
   // Vendedor: story mapping fila 7.
-  // Puede operar catalogo, ventas propias, clientes y stock.
+  // Puede operar catalogo, ventas, pedidos, clientes y abonos.
   // NO elimina nada, NO ve usuarios ni roles ni reportes globales.
   [ROLES.SELLER]: [
     "dashboard.view",
     "catalog.view",
-    "products.view", "products.edit",
-    "categories.view", "categories.create", "categories.edit",
-    "sales.view", "sales.create", "sales.own", "sales.cancel",
+    // Igual que en la API: productos y categorías solo los escribe el Administrador.
+    "products.view",
+    "categories.view",
+    // Vende; anular una venta es solo del Administrador.
+    "sales.view", "sales.create", "sales.own",
     // "orders.own" limita edicion y borrado a los pedidos aun pendientes
     "orders.view", "orders.own", "orders.create", "orders.edit", "orders.delete", "orders.convert",
     // registra abonos de sus ventas y consulta el estado de cuenta, pero no borra pagos

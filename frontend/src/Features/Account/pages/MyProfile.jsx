@@ -34,6 +34,8 @@ function MyProfile() {
   });
   const [errors, setErrors] = useState({});
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -41,7 +43,7 @@ function MyProfile() {
     setSaved(false);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     const nextErrors = {};
@@ -51,18 +53,23 @@ function MyProfile() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       nextErrors.email = "El correo electrónico no tiene un formato válido.";
     }
-    if (form.phone.trim() && !/^[+()\d\s-]{7,}$/.test(form.phone.trim())) {
-      nextErrors.phone = "El teléfono solo puede incluir números, espacios y signos básicos.";
+    if (form.phone.trim() && !/^3\d{9}$/.test(form.phone.trim())) {
+      nextErrors.phone = "Solo números: 10 dígitos que empiecen por 3.";
     }
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    updateProfile({
-      name: form.name.trim(),
-      email: form.email.trim().toLowerCase(),
-      phone: form.phone.trim()
-    });
+    // El correo es el usuario de la cuenta: no se cambia desde aquí.
+    setSaving(true);
+    setServerError("");
+    const r = await updateProfile({ name: form.name.trim(), phone: form.phone.trim() });
+    setSaving(false);
+    if (!r.ok) {
+      setServerError(r.error);
+      if (r.details) setErrors({ name: r.details.nombre, phone: r.details.telefono });
+      return;
+    }
     setSaved(true);
   };
 
@@ -124,22 +131,26 @@ function MyProfile() {
                   value={form.email}
                   onChange={(event) => handleChange("email", event.target.value)}
                   error={errors.email}
+                  disabled
                   required
                 />
+                <p className="mt-1 text-xs text-muted-foreground">El correo es tu usuario de acceso: no se cambia desde aquí.</p>
               </Field>
               <Field error={errors.phone}>
                 <Input
                   label="Teléfono"
                   name="phone"
                   value={form.phone}
-                  onChange={(event) => handleChange("phone", event.target.value)}
+                  onChange={(event) => handleChange("phone", event.target.value.replace(/\D/g, "").slice(0, 10))}
                   error={errors.phone}
-                  placeholder="+57 300 000 0000"
+                  inputMode="numeric"
+                  placeholder="3001234567"
                 />
               </Field>
 
               <div className="flex items-center gap-3 pt-2">
-                <Button type="submit">Guardar cambios</Button>
+                <Button type="submit" disabled={saving}>{saving ? "Guardando..." : "Guardar cambios"}</Button>
+                {serverError && <span className="text-sm text-destructive">{serverError}</span>}
                 {saved && (
                   <span className="flex items-center gap-1.5 text-sm text-success">
                     <Check className="h-4 w-4" />

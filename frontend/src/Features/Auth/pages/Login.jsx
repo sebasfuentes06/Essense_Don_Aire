@@ -131,9 +131,10 @@ function Login({ onRegister, onForgotPassword }) {
 
             {import.meta.env.DEV && (
               <p className="text-center text-xs text-[#999]">
-                Cuentas de prueba: admin@ · carlos@ · maria@ · laura@essence.com
+                Cuentas de prueba: <span className="font-mono">admin@essence.com / Essence2026*</span>
                 <br />
-                contraseña <span className="font-mono">Essence2026*</span>
+                <span className="font-mono">vendedor@essence.com / Vendedor2026*</span> ·{" "}
+                <span className="font-mono">cliente@essence.com / Cliente2026*</span>
               </p>
             )}
 

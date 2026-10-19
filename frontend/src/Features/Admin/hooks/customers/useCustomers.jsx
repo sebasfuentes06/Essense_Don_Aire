@@ -1,249 +1,205 @@
-import { useState } from "react";
-const mockCustomers = [
-  {
-    id: 1, name: "Mar\xEDa Gonz\xE1lez", email: "maria.gonzalez@email.com", phone: "+1 234 567 8901", address: "Calle Principal 123", city: "Ciudad de M\xE9xico", totalPurchases: 12,
-    totalSpent: 1250.5, status: "active", joinDate: "2024-01-15", lastPurchase: "2024-06-01"
-  },
-  {
-    id: 2, name: "Carlos Rodr\xEDguez", email: "carlos.r@email.com", phone: "+1 234 567 8902", address: "Av. Reforma 456", city: "Guadalajara", totalPurchases: 8,
-    totalSpent: 890, status: "active", joinDate: "2024-02-10", lastPurchase: "2024-05-28"
-  },
-  {
-    id: 3, name: "Ana Mart\xEDnez", email: "ana.martinez@email.com", phone: "+1 234 567 8903", address: "Colonia Centro 789", city: "Monterrey", totalPurchases: 25,
-    totalSpent: 2340.75, status: "active", joinDate: "2023-11-05", lastPurchase: "2024-06-02"
-  },
-  {
-    id: 4, name: "Luis Hern\xE1ndez", email: "luis.h@email.com", phone: "+1 234 567 8904", address: "Boulevard 321", city: "Puebla", totalPurchases: 3,
-    totalSpent: 340.25, status: "inactive", joinDate: "2024-03-20", lastPurchase: "2024-04-15"
-  }
-];
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { clientes } from "../../../../shared/negocio";
+import { PERSONA_VACIA, personaAApi, erroresApiAPersona } from "../../../../shared/persona";
+
 const sortOptions = [
   { value: "name", label: "Nombre" },
-  { value: "totalSpent", label: "Total Gastado" },
-  { value: "totalPurchases", label: "Compras" },
-  { value: "joinDate", label: "Fecha Registro" }
+  { value: "balance", label: "Saldo pendiente" },
+  { value: "purchases", label: "N° de compras" },
+  { value: "lastPurchase", label: "Última compra" },
+  { value: "registeredAt", label: "Fecha de registro" }
 ];
+
+const FORM_VACIO = { ...PERSONA_VACIA, documentType: "CC", notes: "", active: true };
+
+/**
+ * Clientes contra la API de la app móvil: misma ficha (tipo y número de
+ * documento, celular, municipio de Antioquia) y mismo estado de cuenta.
+ */
 function useCustomers() {
-  const [customers, setCustomers] = useState(mockCustomers);
+  const [all, setAll] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [balanceFilter, setBalanceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [viewMode, setViewMode] = useState("edit");
-  const [customerForm, setCustomerForm] = useState({ nombre: "", correo: "", contrasena: "", telefono: "", ciudad: "", estado: true, name: "", email: "", password: "", phone: "", city: "", status: "active" });
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [customerToDelete, setCustomerToDelete] = useState(null);
-  const filteredCustomers = customers.filter((customer) => {
-    const matchesSearch = customer.name.toLowerCase().includes(searchQuery.toLowerCase()) || customer.email.toLowerCase().includes(searchQuery.toLowerCase()) || customer.phone.includes(searchQuery);
-    const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
-    if (typeof aValue === "string") {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [form, setForm] = useState(FORM_VACIO);
+  const [formErrors, setFormErrors] = useState({});
+  const [formError, setFormError] = useState("");
+  const [viewingCustomer, setViewingCustomer] = useState(null);
+  const [deletingCustomer, setDeletingCustomer] = useState(null);
+
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      setAll(await clientes.listar());
+    } catch (e) {
+      setLoadError(e.message);
+    } finally {
+      setIsLoading(false);
     }
-    if (sortDirection === "asc") {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
-    }
-  });
-  const totalPages = Math.ceil(sortedCustomers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedCustomers = sortedCustomers.slice(startIndex, startIndex + itemsPerPage);
-  const handleDelete = (customer) => {
-    setCustomerToDelete(customer);
-    setDeleteDialogOpen(true);
-  };
-  const confirmDelete = () => {
-    if (customerToDelete) {
-      setCustomers(customers.filter((c) => c.id !== customerToDelete.id));
-      setDeleteDialogOpen(false);
-      setCustomerToDelete(null);
-    }
-  };
-  const handleEdit = (customer) => {
-    setSelectedCustomer(customer);
-    setCustomerForm({
-      nombre: customer.nombre ?? customer.name ?? "",
-      correo: customer.correo ?? customer.email ?? "",
-      contrasena: "",
-      telefono: customer.telefono ?? customer.phone ?? "",
-      ciudad: customer.ciudad ?? customer.city ?? "",
-      estado: customer.estado ?? customer.status ?? true,
-      name: customer.name ?? customer.nombre ?? "",
-      email: customer.email ?? customer.correo ?? "",
-      password: "",
-      phone: customer.phone ?? customer.telefono ?? "",
-      city: customer.city ?? customer.ciudad ?? "",
-      status: customer.status ?? customer.estado ?? "active"
+  }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const lista = all.filter((c) => {
+      if (statusFilter === "active" && !c.active) return false;
+      if (statusFilter === "inactive" && c.active) return false;
+      if (balanceFilter === "debt" && !(c.balance > 0)) return false;
+      if (balanceFilter === "clear" && c.balance > 0) return false;
+      if (!q) return true;
+      return [c.name, c.document, c.phone, c.email, c.city].some((v) => String(v ?? "").toLowerCase().includes(q));
     });
-    setViewMode("edit");
-    setIsModalOpen(true);
-  };
-  const handleView = (customer) => {
-    setSelectedCustomer(customer);
-    setCustomerForm({
-      nombre: customer.nombre ?? customer.name ?? "",
-      correo: customer.correo ?? customer.email ?? "",
-      telefono: customer.telefono ?? customer.phone ?? "",
-      ciudad: customer.ciudad ?? customer.city ?? "",
-      estado: customer.estado ?? customer.status ?? true,
-      name: customer.name ?? customer.nombre ?? "",
-      email: customer.email ?? customer.correo ?? "",
-      phone: customer.phone ?? customer.telefono ?? "",
-      city: customer.city ?? customer.ciudad ?? "",
-      status: customer.status ?? customer.estado ?? "active"
+    const dir = sortDirection === "desc" ? -1 : 1;
+    return lista.sort((a, b) => {
+      const x = a[sortBy];
+      const y = b[sortBy];
+      if (typeof x === "number") return (x - y) * dir;
+      return String(x ?? "").localeCompare(String(y ?? ""), "es") * dir;
     });
-    setViewMode("details");
-    setIsModalOpen(true);
-  };
-  const handleNewCustomer = () => {
-    setSelectedCustomer(null);
-    setCustomerForm({ nombre: "", correo: "", contrasena: "", telefono: "", ciudad: "", estado: true, name: "", email: "", password: "", phone: "", city: "", status: "active" });
-    setViewMode("edit");
-    setIsModalOpen(true);
-  };
-  const handleSaveCustomer = () => {
-    const nombre = customerForm.nombre ?? customerForm.name ?? "";
-    const correo = customerForm.correo ?? customerForm.email ?? "";
-    const passwordValue = customerForm.contrasena ?? customerForm.password ?? "";
-    const telefono = customerForm.telefono ?? customerForm.phone ?? "";
-    const ciudad = customerForm.ciudad ?? customerForm.city ?? "";
+  }, [all, searchQuery, statusFilter, balanceFilter, sortBy, sortDirection]);
 
-    if (!String(nombre).trim()) {
-      alert("Debe indicar el nombre completo.");
-      return;
-    }
-    if (!String(correo).trim()) {
-      alert("Debe indicar un correo electrónico.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(correo).trim())) {
-      alert("El correo electrónico no es válido.");
-      return;
-    }
-    if (!selectedCustomer && !String(passwordValue).trim()) {
-      alert("La contraseña es obligatoria.");
-      return;
-    }
-    if (String(telefono).trim() && !/^[+()\d\s-]{7,}$/.test(String(telefono).trim())) {
-      alert("El teléfono no es válido.");
-      return;
-    }
-    if (!String(ciudad).trim()) {
-      alert("Debe indicar la ciudad.");
-      return;
-    }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-    const payload = {
-      nombre,
-      correo,
-      contrasena: passwordValue,
-      telefono,
-      ciudad,
-      estado: customerForm.estado ?? customerForm.status ?? true,
-      name: customerForm.name ?? customerForm.nombre ?? "",
-      email: customerForm.email ?? customerForm.correo ?? "",
-      password: passwordValue,
-      phone: customerForm.phone ?? customerForm.telefono ?? "",
-      city: customerForm.city ?? customerForm.ciudad ?? "",
-      status: customerForm.status ?? customerForm.estado ?? "active"
-    };
+  const stats = useMemo(
+    () => ({
+      total: all.length,
+      active: all.filter((c) => c.active).length,
+      withDebt: all.filter((c) => c.balance > 0).length,
+      debt: all.reduce((s, c) => s + c.balance, 0)
+    }),
+    [all]
+  );
 
-    if (selectedCustomer) {
-      setCustomers(customers.map(
-        (customer) => customer.id === selectedCustomer.id
-          ? { ...customer, ...payload, password: passwordValue || customer.password }
-          : customer
-      ));
-    } else {
-      const nextId = Math.max(0, ...customers.map((customer) => customer.id)) + 1;
-      setCustomers([...customers, { id: nextId, totalPurchases: 0, totalSpent: 0, joinDate: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10), ...payload }]);
-    }
-    setIsModalOpen(false);
-    setSelectedCustomer(null);
-  };
-  const handleToggleStatus = (customer) => {
-    setCustomers(customers.map(
-      (c) => c.id === customer.id ? { ...c, status: c.status === "active" ? "inactive" : "active" } : c
-    ));
-  };
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedCustomer(null);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setCustomerToDelete(null);
-  };
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
+  const reset = (fn) => (v) => {
+    fn(v);
     setCurrentPage(1);
   };
-  const handleStatusFilterChange = (value) => {
-    setStatusFilter(value);
-    setCurrentPage(1);
+
+  const openNew = () => {
+    setEditingCustomer(null);
+    setForm(FORM_VACIO);
+    setFormErrors({});
+    setFormError("");
+    setIsFormOpen(true);
   };
-  const updateCustomerFormField = (field, value) => {
-    setCustomerForm((prev) => ({ ...prev, [field]: value }));
+
+  const openEdit = (c) => {
+    setEditingCustomer(c);
+    setForm({
+      fullName: c.name,
+      documentType: c.documentType || "CC",
+      document: c.document,
+      phone: c.phone,
+      city: c.city,
+      address: c.address,
+      email: c.email,
+      notes: c.notes,
+      active: c.active
+    });
+    setFormErrors({});
+    setFormError("");
+    setIsFormOpen(true);
   };
+
+  const closeForm = () => {
+    setIsFormOpen(false);
+    setEditingCustomer(null);
+  };
+
+  const save = async () => {
+    setFormError("");
+    const body = { ...personaAApi(form), notas: form.notes?.trim() ?? "", ...(editingCustomer && { estado: form.active }) };
+    try {
+      if (editingCustomer) await clientes.actualizar(editingCustomer.id, body);
+      else await clientes.crear(body);
+      toast.success(editingCustomer ? "Cliente actualizado." : "Cliente registrado.");
+      closeForm();
+      await reload();
+    } catch (e) {
+      setFormError(e.message);
+      if (e.details) setFormErrors(erroresApiAPersona(e.details));
+    }
+  };
+
+  const toggleStatus = async (c) => {
+    try {
+      await clientes.actualizar(c.id, { estado: !c.active });
+      toast.success(c.active ? "Cliente desactivado." : "Cliente activado.");
+      await reload();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await clientes.eliminar(deletingCustomer.id);
+      toast.success("Cliente eliminado.");
+      setDeletingCustomer(null);
+      await reload();
+    } catch (e) {
+      toast.error(e.message);
+      setDeletingCustomer(null);
+    }
+  };
+
   return {
-    // data
-    customers,
+    all,
+    isLoading,
+    loadError,
+    reload,
+    filtered,
+    paginated,
+    stats,
     sortOptions,
-    filteredCustomers,
-    sortedCustomers,
-    paginatedCustomers,
-    totalPages,
-    // state
     searchQuery,
-    currentPage,
-    itemsPerPage,
-    sortBy,
-    sortDirection,
+    handleSearchChange: reset(setSearchQuery),
     statusFilter,
-    isModalOpen,
-    selectedCustomer,
-    viewMode,
-    customerForm,
-    deleteDialogOpen,
-    customerToDelete,
-    // setters
-    setSearchQuery,
-    setCurrentPage,
-    setItemsPerPage,
+    handleStatusFilterChange: reset(setStatusFilter),
+    balanceFilter,
+    handleBalanceFilterChange: reset(setBalanceFilter),
+    sortBy,
     setSortBy,
+    sortDirection,
     setSortDirection,
-    setStatusFilter,
-    setIsModalOpen,
-    setSelectedCustomer,
-    setViewMode,
-    setCustomerForm,
-    setDeleteDialogOpen,
-    setCustomerToDelete,
-    // handlers
-    handleDelete,
-    confirmDelete,
-    handleEdit,
-    handleView,
-    handleNewCustomer,
-    handleSaveCustomer,
-    handleToggleStatus,
-    closeModal,
-    closeDeleteDialog,
-    handleSearchChange,
-    handleStatusFilterChange,
-    updateCustomerFormField
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage: reset((v) => setItemsPerPage(Number(v))),
+    totalPages,
+    isFormOpen,
+    editingCustomer,
+    form,
+    setForm,
+    formErrors,
+    formError,
+    openNew,
+    openEdit,
+    closeForm,
+    save,
+    toggleStatus,
+    viewingCustomer,
+    setViewingCustomer,
+    deletingCustomer,
+    setDeletingCustomer,
+    confirmDelete
   };
 }
-export {
-  useCustomers
-};
+
+export { useCustomers };

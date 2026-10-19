@@ -1,207 +1,212 @@
-import { useMemo, useState } from "react";
-import { useAuth, ROLES } from "../../../../shared/auth";
-import { usePaymentsStore, PAYMENT_STATUS } from "../../../../shared/payments";
-
-const sortOptions = [
-  { value: "date", label: "Fecha" },
-  { value: "folio", label: "Folio" },
-  { value: "customer", label: "Cliente" },
-  { value: "amount", label: "Monto" }
-];
-
-const emptyForm = {
-  saleId: "",
-  amount: "",
-  method: "cash",
-  date: new Date().toISOString().slice(0, 10),
-  reference: ""
-};
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useAuth } from "../../../../shared/auth";
+import { pagos, ventas, num } from "../../../../shared/negocio";
 
 /**
- * Estado de pantalla del módulo Pagos y Abonos.
- * El alcance depende del rol: el Administrador ve todo, el Vendedor lo de
- * sus ventas y el Cliente únicamente lo suyo.
+ * Pagos conectados a la API de la app móvil.
+ *
+ * Equipo: "Por aprobar" (lo que reportan los clientes), "Cartera" (ventas con
+ * saldo agrupadas por cliente) e "Historial". Solo el Administrador aprueba,
+ * rechaza o anula; el Vendedor registra abonos.
+ *
+ * Cliente: sus compras con saldo (paga con Wompi o reporta una transferencia
+ * con comprobante) y el historial de sus pagos. La API ya filtra lo suyo.
  */
 function usePayments() {
-  const { user, role, can } = useAuth();
-  const store = usePaymentsStore();
+  const { user } = useAuth();
+  const isClient = user?.role === "Cliente";
+  const isAdmin = user?.role === "Administrador";
 
-  const [tab, setTab] = useState("abonos");
+  const [tab, setTab] = useState(isClient ? "saldos" : "por_aprobar");
+  const [payments, setPayments] = useState([]);
+  const [cartera, setCartera] = useState(null);
+  const [openSales, setOpenSales] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [methodFilter, setMethodFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("date");
-  const [sortDirection, setSortDirection] = useState("desc");
+  const [methodFilter, setMethodFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [formError, setFormError] = useState("");
-  const [statementCustomer, setStatementCustomer] = useState(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [paymentToDelete, setPaymentToDelete] = useState(null);
+  const [payingSale, setPayingSale] = useState(null); // venta a la que se le registra/reporta un pago
+  const [viewingPayment, setViewingPayment] = useState(null);
+  const [rejectingPayment, setRejectingPayment] = useState(null);
+  const [voidingPayment, setVoidingPayment] = useState(null);
+  const [wompiBusy, setWompiBusy] = useState(null);
 
-  const onlyOwn = can("payments.own");
-  const isClient = role === ROLES.CLIENT;
-  const name = user?.name ?? "";
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const [lista, extra] = await Promise.all([
+        pagos.listar(),
+        isClient ? ventas.listar({ estado_pago: "con_saldo" }) : pagos.pendientes()
+      ]);
+      setPayments(lista);
+      if (isClient) setOpenSales(extra);
+      else setCartera(extra);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isClient]);
 
-  /* --------------------------------- alcance --------------------------- */
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
-  const visiblePayments = useMemo(() => {
-    if (!onlyOwn) return store.payments;
-    if (isClient) return store.payments.filter((payment) => payment.customer === name);
-    return store.payments.filter((payment) => payment.seller === name);
-  }, [store.payments, onlyOwn, isClient, name]);
+  const porAprobar = useMemo(() => payments.filter((p) => p.status === "pendiente"), [payments]);
 
-  const visibleSales = useMemo(() => {
-    if (!onlyOwn) return store.salesWithBalance;
-    if (isClient) return store.salesWithBalance.filter((sale) => sale.customer === name);
-    return store.salesWithBalance.filter((sale) => sale.seller === name);
-  }, [store.salesWithBalance, onlyOwn, isClient, name]);
-
-  const visibleStatements = useMemo(() => {
-    if (!onlyOwn) return store.statements;
-    if (isClient) return store.statements.filter((statement) => statement.customer === name);
-    // el Vendedor ve el estado de cuenta de los clientes a los que le vendió
-    const myCustomers = new Set(visibleSales.map((sale) => sale.customer));
-    return store.statements.filter((statement) => myCustomers.has(statement.customer));
-  }, [store.statements, onlyOwn, isClient, name, visibleSales]);
-
-  /* -------------------------------- filtros ---------------------------- */
-
-  const filteredPayments = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return visiblePayments.filter((payment) => {
-      const matchSearch =
-        !query ||
-        payment.folio.toLowerCase().includes(query) ||
-        payment.saleFolio.toLowerCase().includes(query) ||
-        payment.customer.toLowerCase().includes(query);
-      const matchMethod = methodFilter === "all" || payment.method === methodFilter;
-      return matchSearch && matchMethod;
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return payments.filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (methodFilter !== "all" && p.method !== methodFilter) return false;
+      if (!q) return true;
+      return [p.invoice, p.customer, p.reference].some((v) => String(v ?? "").toLowerCase().includes(q));
     });
-  }, [visiblePayments, searchQuery, methodFilter]);
+  }, [payments, searchQuery, statusFilter, methodFilter]);
 
-  const sortedPayments = useMemo(() => {
-    return [...filteredPayments].sort((a, b) => {
-      const aValue = typeof a[sortBy] === "string" ? a[sortBy].toLowerCase() : a[sortBy];
-      const bValue = typeof b[sortBy] === "string" ? b[sortBy].toLowerCase() : b[sortBy];
-      if (aValue === bValue) return 0;
-      return sortDirection === "asc" ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
-    });
-  }, [filteredPayments, sortBy, sortDirection]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedPayments.length / itemsPerPage));
-  const paginatedPayments = sortedPayments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  /** Estado de cuenta filtrado: "pendientes" es el reporte de saldos abiertos. */
-  const filteredStatements = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return visibleStatements.filter((statement) => {
-      const matchSearch = !query || statement.customer.toLowerCase().includes(query);
-      const matchStatus =
-        statusFilter === "all" ||
-        (statusFilter === "pending" ? statement.balance > 0 : statement.balance === 0);
-      return matchSearch && matchStatus;
-    });
-  }, [visibleStatements, searchQuery, statusFilter]);
-
-  /* --------------------------------- KPIs ------------------------------ */
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const stats = useMemo(() => {
-    const active = visibleSales.filter((sale) => sale.paymentStatus !== PAYMENT_STATUS.CANCELLED);
-    return {
-      invoiced: Number(active.reduce((sum, sale) => sum + sale.total, 0).toFixed(2)),
-      collected: Number(active.reduce((sum, sale) => sum + sale.paid, 0).toFixed(2)),
-      balance: Number(active.reduce((sum, sale) => sum + sale.balance, 0).toFixed(2)),
-      openSales: active.filter((sale) => sale.balance > 0).length,
-      paymentsCount: visiblePayments.length
-    };
-  }, [visibleSales, visiblePayments]);
-
-  /** Ventas a las que todavía se les puede abonar (para el formulario). */
-  const payableSales = useMemo(
-    () => visibleSales.filter((sale) => sale.balance > 0 && sale.paymentStatus !== PAYMENT_STATUS.CANCELLED),
-    [visibleSales]
-  );
-
-  /* -------------------------------- acciones --------------------------- */
-
-  const resetPage = () => setCurrentPage(1);
-
-  const handleSearchChange = (value) => { setSearchQuery(value); resetPage(); };
-  const handleMethodFilterChange = (value) => { setMethodFilter(value); resetPage(); };
-  const handleStatusFilterChange = (value) => { setStatusFilter(value); resetPage(); };
-
-  const handleNewPayment = (sale = null) => {
-    setForm({ ...emptyForm, saleId: sale ? String(sale.id) : String(payableSales[0]?.id ?? "") });
-    setFormError("");
-    setIsFormOpen(true);
-  };
-
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setForm(emptyForm);
-    setFormError("");
-  };
-
-  const handleSavePayment = () => {
-    const result = store.createPayment({
-      saleId: Number(form.saleId),
-      amount: form.amount,
-      method: form.method,
-      date: form.date,
-      reference: form.reference
+    const aplicados = payments.filter((p) => p.status === "aplicado");
+    const mes = new Date();
+    const delMes = aplicados.filter((p) => {
+      const d = new Date(p.date);
+      return d.getMonth() === mes.getMonth() && d.getFullYear() === mes.getFullYear();
     });
+    const suma = (xs) => xs.reduce((s, p) => s + p.amount, 0);
+    return {
+      porAprobarCount: porAprobar.length,
+      porAprobarValue: suma(porAprobar),
+      cartera: isClient ? openSales.reduce((s, v) => s + v.balance, 0) : num(cartera?.total_pendiente),
+      carteraVentas: isClient ? openSales.length : Number(cartera?.cantidad_ventas ?? 0),
+      carteraClientes: Number(cartera?.cantidad_clientes ?? 0),
+      cobradoMes: suma(delMes),
+      pagadoTotal: suma(aplicados),
+      rechazados: payments.filter((p) => p.status === "rechazado").length
+    };
+  }, [payments, porAprobar, cartera, openSales, isClient]);
 
-    if (!result.ok) {
-      setFormError(result.error);
-      return;
+  const resetPage = (fn) => (v) => {
+    fn(v);
+    setCurrentPage(1);
+  };
+
+  /** Registra (equipo) o reporta (cliente) un pago. El cuerpo ya viene armado. */
+  const savePayment = async (body) => {
+    const { mensaje } = await pagos.registrar(body);
+    toast.success(mensaje || (isClient ? "Pago reportado. Lo revisaremos pronto." : "Pago registrado."));
+    setPayingSale(null);
+    await reload();
+  };
+
+  const approve = async (p) => {
+    try {
+      toast.success(await pagos.aprobar(p.id));
+      setViewingPayment(null);
+      await reload();
+    } catch (e) {
+      toast.error(e.message);
     }
-    handleCloseForm();
   };
 
-  const handleDeleteRequest = (payment) => {
-    setPaymentToDelete(payment);
-    setDeleteDialogOpen(true);
+  const confirmReject = async (motivo) => {
+    const msg = await pagos.rechazar(rejectingPayment.id, motivo);
+    toast.success(msg || "Pago rechazado.");
+    setRejectingPayment(null);
+    setViewingPayment(null);
+    await reload();
   };
 
-  const confirmDelete = () => {
-    if (paymentToDelete) store.deletePayment(paymentToDelete.id);
-    setDeleteDialogOpen(false);
-    setPaymentToDelete(null);
+  const confirmVoid = async (motivo) => {
+    const msg = await pagos.anular(voidingPayment.id, motivo);
+    toast.success(msg || "Pago anulado.");
+    setVoidingPayment(null);
+    setViewingPayment(null);
+    await reload();
+  };
+
+  /** Crea el link de Wompi y lo abre (cliente) o lo copia (equipo). */
+  const payWithWompi = async (sale) => {
+    // La ventana se abre antes de la llamada para que el navegador no la bloquee.
+    const ventana = isClient ? window.open("about:blank", "_blank") : null;
+    setWompiBusy(sale.id);
+    try {
+      const link = await pagos.linkWompi(sale.id);
+      if (ventana) {
+        ventana.location.href = link.url;
+        toast.success("Abrimos Wompi en otra pestaña. Cuando pagues, tu saldo se actualiza solo.");
+      } else {
+        try {
+          await navigator.clipboard.writeText(link.url);
+          toast.success("Link de Wompi copiado. Compártelo con el cliente.");
+        } catch {
+          toast.success(`Link de Wompi: ${link.url}`, { duration: 15000 });
+        }
+      }
+    } catch (e) {
+      ventana?.close();
+      toast.error(e.message);
+    } finally {
+      setWompiBusy(null);
+    }
+  };
+
+  const uploadProof = async (p, comprobante) => {
+    await pagos.subirComprobante(p.id, comprobante);
+    toast.success("Comprobante actualizado.");
+    setViewingPayment((v) => (v && v.id === p.id ? { ...v, hasProof: true } : v));
+    await reload();
   };
 
   return {
-    tab, setTab,
-    onlyOwn, isClient,
-
-    payments: paginatedPayments,
-    allFilteredPayments: sortedPayments,
-    statements: filteredStatements,
-    payableSales,
+    isClient,
+    isAdmin,
+    tab,
+    setTab,
+    payments,
+    porAprobar,
+    cartera,
+    openSales,
+    isLoading,
+    error,
+    reload,
+    filtered,
+    paginated,
     stats,
-    sortOptions,
-
-    searchQuery, handleSearchChange,
-    methodFilter, handleMethodFilterChange,
-    statusFilter, handleStatusFilterChange,
-    sortBy, setSortBy,
-    sortDirection, setSortDirection,
-    currentPage, setCurrentPage,
-    itemsPerPage, setItemsPerPage,
+    searchQuery,
+    handleSearchChange: resetPage(setSearchQuery),
+    statusFilter,
+    handleStatusFilterChange: resetPage(setStatusFilter),
+    methodFilter,
+    handleMethodFilterChange: resetPage(setMethodFilter),
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage: resetPage(setItemsPerPage),
     totalPages,
-
-    isFormOpen, form, setForm, formError,
-    handleNewPayment, handleCloseForm, handleSavePayment,
-
-    statementCustomer, setStatementCustomer,
-    getStatement: store.getStatement,
-
-    deleteDialogOpen, paymentToDelete,
-    closeDeleteDialog: () => setDeleteDialogOpen(false),
-    handleDeleteRequest, confirmDelete
+    payingSale,
+    setPayingSale,
+    viewingPayment,
+    setViewingPayment,
+    rejectingPayment,
+    setRejectingPayment,
+    voidingPayment,
+    setVoidingPayment,
+    wompiBusy,
+    savePayment,
+    approve,
+    confirmReject,
+    confirmVoid,
+    payWithWompi,
+    uploadProof
   };
 }
 

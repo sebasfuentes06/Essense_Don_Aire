@@ -17,7 +17,7 @@ function LowStockAlert({
     }), /* @__PURE__ */jsx(CardContent, {
       children: /* @__PURE__ */jsx("div", {
         className: "space-y-3",
-        children: products.map(product => /* @__PURE__ */jsxs("div", {
+        children: products.length === 0 ? /* @__PURE__ */jsx("p", { className: "text-sm text-muted-foreground", children: "Ningún producto está por debajo de su stock mínimo." }) : products.map(product => /* @__PURE__ */jsxs("div", {
           className: "flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10",
           children: [/* @__PURE__ */jsxs("div", {
             children: [/* @__PURE__ */jsx("p", {

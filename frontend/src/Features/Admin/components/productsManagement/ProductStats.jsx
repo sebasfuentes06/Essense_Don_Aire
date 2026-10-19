@@ -1,5 +1,6 @@
 import { Package, AlertCircle } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
+import { dinero } from "../../../../shared/negocio";
 
 /**
  * Tarjetas de resumen.
@@ -21,14 +22,14 @@ function ProductStats({ products = [], lowStockCount = 0, stats }) {
       icon: <div className="h-8 w-8 rounded-full bg-success/10 flex items-center justify-center"><span className="text-success">✓</span></div> },
     { label: "Stock Bajo", value: bajos, tone: "text-destructive",
       icon: <AlertCircle className="h-8 w-8 text-destructive" /> },
-    { label: "Valor Total", value: `$${Number(valor).toFixed(2)}`, tone: "text-primary",
+    { label: "Valor Total", value: dinero(valor), tone: "text-primary",
       icon: <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center"><span className="text-primary">$</span></div> }
   ];
 
   return (
     <div className="stats-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
       {cards.map((card) => (
-        <Card key={card.label}>
+        <Card key={card.label} className="p-5">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground">{card.label}</p>

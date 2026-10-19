@@ -1,150 +1,119 @@
-import { AlertCircle, Plus } from "lucide-react";
-import { Button } from "../../../../shared/components/ui/button";
+import { useEffect, useState } from "react";
+import { Check, Shield, ShieldCheck, User, Users } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
-import { DeleteDialog } from "../../../../shared/components/ui/DeleteDialog";
-import { useRoles } from "../../hooks/roles";
-import { RoleStats, RoleFilters, RoleTable, RoleFormModal, RoleDetailModal } from "../../components/roles";
+import { api } from "../../../../shared/api";
+import { ROLE_LIST, PERMISSIONS_BY_ROLE } from "../../../../shared/auth/roles";
+
+/**
+ * Roles: vista de solo lectura.
+ *
+ * La API de la app maneja tres roles fijos (Administrador, Vendedor y
+ * Cliente) y sus reglas viven en el servidor, así que aquí no se crean ni se
+ * editan roles: se muestra qué puede hacer cada uno y cuántas cuentas tiene.
+ * Para cambiarle el rol a alguien se usa el módulo Usuarios.
+ */
+
+const MODULOS = {
+  dashboard: "Dashboard",
+  catalog: "Catálogo",
+  products: "Productos",
+  categories: "Categorías",
+  sales: "Ventas",
+  orders: "Pedidos",
+  payments: "Pagos",
+  purchases: "Compras",
+  customers: "Clientes",
+  suppliers: "Proveedores",
+  users: "Usuarios",
+  roles: "Roles",
+  data: "Exportar datos",
+  profile: "Mi perfil"
+};
+
+const ACCIONES = {
+  view: "ver",
+  create: "crear",
+  edit: "editar",
+  delete: "eliminar",
+  toggle: "activar/desactivar",
+  own: "solo lo suyo",
+  status: "cambiar estado",
+  convert: "convertir en venta",
+  cancel: "cancelar/anular",
+  statement: "estado de cuenta",
+  export: "CSV y PDF"
+};
+
+const ICONOS = { Administrador: ShieldCheck, Vendedor: Users, Cliente: User };
+
+function agrupar(permisos) {
+  const grupos = {};
+  for (const p of permisos) {
+    const [modulo, accion] = p.split(".");
+    (grupos[modulo] ??= []).push(ACCIONES[accion] ?? accion);
+  }
+  return Object.entries(grupos).map(([modulo, acciones]) => ({ modulo: MODULOS[modulo] ?? modulo, acciones }));
+}
 
 function Roles() {
-  const {
-    roles,
-    availablePermissions,
-    sortOptions,
-    isLoading,
-    loadError,
-    actionError,
-    formErrors,
-    stats,
-    totalItems,
-    searchQuery,
-    currentPage,
-    itemsPerPage,
-    sortBy,
-    sortDirection,
-    statusFilter,
-    totalPages,
-    paginatedRoles,
-    isModalOpen,
-    selectedRole,
-    roleForm,
-    deleteDialogOpen,
-    roleToDelete,
-    detailModalOpen,
-    roleToView,
-    setCurrentPage,
-    setItemsPerPage,
-    setSortBy,
-    setSortDirection,
-    setRoleForm,
-    handleDelete,
-    confirmDelete,
-    handleEdit,
-    handleView,
-    handleToggleStatus,
-    handleNewRole,
-    handleSaveRole,
-    closeFormModal,
-    closeDetailModal,
-    closeDeleteDialog,
-    handleSearchChange,
-    handleStatusFilterChange
-  } = useRoles();
+  const [conteo, setConteo] = useState(null);
+
+  useEffect(() => {
+    api
+      .todos("/usuarios")
+      .then((lista) => {
+        const c = {};
+        for (const u of lista) if (u.estado && u.aprobacion !== "pendiente") c[u.rol] = (c[u.rol] ?? 0) + 1;
+        setConteo(c);
+      })
+      .catch(() => setConteo({}));
+  }, []);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Roles y Permisos</h1>
-          <p className="text-muted-foreground">
-            Gestiona los roles y permisos de acceso al sistema
-          </p>
-        </div>
-        <Button onClick={handleNewRole}>
-          <Plus className="h-5 w-5" />
-          Nuevo Rol
-        </Button>
+      <div>
+        <h1 className="mb-2 text-4xl font-bold text-foreground">Roles</h1>
+        <p className="text-muted-foreground">
+          Los tres roles del sistema y lo que puede hacer cada uno. Son fijos (los mismos de la app móvil); para cambiarle el rol a una persona usa el módulo Usuarios.
+        </p>
       </div>
 
-      {loadError && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{loadError}</span>
-        </div>
-      )}
-
-      {actionError && !deleteDialogOpen && !isModalOpen && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{actionError}</span>
-        </div>
-      )}
-
-      <RoleStats roles={roles} availablePermissions={availablePermissions} stats={stats} />
-
-      <RoleFilters
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchChange}
-        statusFilter={statusFilter}
-        onStatusFilterChange={handleStatusFilterChange}
-        sortBy={sortBy}
-        onSortByChange={setSortBy}
-        sortDirection={sortDirection}
-        onSortDirectionChange={setSortDirection}
-        sortOptions={sortOptions}
-        itemsPerPage={itemsPerPage}
-        onItemsPerPageChange={setItemsPerPage}
-      />
-
-      {isLoading ? (
-        <Card className="py-12 text-center text-muted-foreground">Cargando roles…</Card>
-      ) : paginatedRoles.length === 0 && !loadError ? (
-        <Card className="py-12 text-center text-muted-foreground">
-          No hay roles que coincidan con la búsqueda.
-        </Card>
-      ) : (
-        <RoleTable
-          paginatedRoles={paginatedRoles}
-          totalPages={totalPages}
-          currentPage={currentPage}
-          itemsPerPage={itemsPerPage}
-          totalItems={totalItems}
-          onPageChange={setCurrentPage}
-          onView={handleView}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onToggleStatus={handleToggleStatus}
-        />
-      )}
-
-      <RoleFormModal
-        isOpen={isModalOpen}
-        onClose={closeFormModal}
-        isEditing={!!selectedRole}
-        roleForm={roleForm}
-        onRoleFormChange={setRoleForm}
-        availablePermissions={availablePermissions}
-        serverError={actionError}
-        serverFieldErrors={formErrors}
-        onSave={handleSaveRole}
-      />
-
-      <RoleDetailModal
-        isOpen={detailModalOpen}
-        onClose={closeDetailModal}
-        roleToView={roleToView}
-        availablePermissions={availablePermissions}
-      />
-
-      <DeleteDialog
-        isOpen={deleteDialogOpen}
-        onClose={closeDeleteDialog}
-        onConfirm={confirmDelete}
-        itemName={roleToDelete?.name}
-        description={
-          actionError ||
-          "Esta acción no se puede deshacer. Un rol con usuarios asignados no se puede eliminar: reasígnalos primero."
-        }
-      />
+      <div className="grid gap-6 xl:grid-cols-3">
+        {ROLE_LIST.map((rol) => {
+          const Icono = ICONOS[rol.value] ?? Shield;
+          const grupos = agrupar(PERMISSIONS_BY_ROLE[rol.value] ?? []);
+          return (
+            <Card key={rol.value} className="flex flex-col p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                    <Icono className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">{rol.label}</h2>
+                    <p className="text-sm text-muted-foreground">{rol.description}</p>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-4 text-sm">
+                <b className="text-foreground">{conteo ? conteo[rol.value] ?? 0 : "…"}</b>{" "}
+                <span className="text-muted-foreground">cuenta(s) activa(s)</span>
+              </p>
+              <div className="mt-4 space-y-2 border-t border-border pt-4">
+                {grupos.map((g) => (
+                  <div key={g.modulo} className="flex items-start gap-2 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                    <p>
+                      <span className="font-medium text-foreground">{g.modulo}:</span>{" "}
+                      <span className="text-muted-foreground">{g.acciones.join(", ")}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -13,9 +13,9 @@ const statusOptions = [
 
 const channelOptions = [
   { value: "all", label: "Todos los canales" },
-  { value: "web", label: "Web" },
+  { value: "app", label: "App / Web" },
   { value: "whatsapp", label: "WhatsApp" },
-  { value: "fisico", label: "Punto físico" }
+  { value: "punto_fisico", label: "Punto físico" }
 ];
 
 function OrdersFiltersBar({

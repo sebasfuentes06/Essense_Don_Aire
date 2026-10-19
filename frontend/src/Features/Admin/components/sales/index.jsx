@@ -1,16 +1,5 @@
-import { SalesHeader } from "./SalesHeader";
-import { SalesStats } from "./SalesStats";
-import { SalesFiltersBar } from "./SalesFiltersBar";
-import { SalesTable } from "./SalesTable";
-import { SaleCancelDialog } from "./SaleCancelDialog";
-import { SaleDetailModal } from "./SaleDetailModal";
-import { SaleFormModal } from "./SaleFormModal";
-export {
-  SaleCancelDialog,
-  SaleDetailModal,
-  SaleFormModal,
-  SalesFiltersBar,
-  SalesHeader,
-  SalesStats,
-  SalesTable
-};
+export { SalesStats } from "./SalesStats";
+export { SalesFiltersBar } from "./SalesFiltersBar";
+export { SalesTable, ESTADO_VENTA } from "./SalesTable";
+export { SaleDetailModal } from "./SaleDetailModal";
+export { SaleFormModal } from "./SaleFormModal";

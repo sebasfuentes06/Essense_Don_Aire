@@ -11,13 +11,13 @@ function TopProductsList({
         children: [/* @__PURE__ */jsx(Package, {
           className: "h-5 w-5 text-primary"
         }), /* @__PURE__ */jsx(CardTitle, {
-          children: "Productos M\xE1s Vendidos"
+          children: "M\xE1s vendidos del mes"
         })]
       })
     }), /* @__PURE__ */jsx(CardContent, {
       children: /* @__PURE__ */jsx("div", {
         className: "space-y-3",
-        children: products.map((product, index) => /* @__PURE__ */jsxs("div", {
+        children: products.length === 0 ? /* @__PURE__ */jsx("p", { className: "text-sm text-muted-foreground", children: "Aún no hay ventas este mes." }) : products.map((product, index) => /* @__PURE__ */jsxs("div", {
           className: "flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors",
           children: [/* @__PURE__ */jsxs("div", {
             className: "flex items-center gap-3",

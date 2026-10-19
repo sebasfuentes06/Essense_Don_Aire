@@ -1,125 +1,84 @@
-import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { Pagination } from "../../../../shared/components/ui/Pagination";
 import { useAuth, ROLES } from "../../../../shared/auth";
-import { useOrdersStore } from "../../../../shared/orders";
+import { useCart } from "../../../../shared/cart";
 import { useProductCatalog } from "../../hooks/productCatalog";
 import {
-  CartModal,
   ProductCatalogHeader,
   ProductCatalogFilters,
   ProductCategoryTabs,
   ProductGrid
 } from "../../components/productCatalog";
 
+/**
+ * Catálogo con los productos reales. El Cliente agrega al carrito (que se
+ * queda guardado aunque cambie de pantalla) y desde ahí hace el pedido.
+ * El equipo lo usa para consultar precios, fotos y disponibilidad.
+ */
 function ProductCatalog() {
-  const { user, role, can } = useAuth();
-  const { createOrder } = useOrdersStore();
-  const navigate = useNavigate();
+  const { role, can } = useAuth();
+  const cart = useCart();
+  const c = useProductCatalog();
+  const isClient = role === ROLES.CLIENT && can("orders.create");
 
-  const {
-    categories,
-    selectedCategory,
-    setSelectedCategory,
-    searchQuery,
-    setSearchQuery,
-    availabilityFilter,
-    setAvailabilityFilter,
-    sortBy,
-    setSortBy,
-    sortDirection,
-    setSortDirection,
-    sortOptions,
-    itemsPerPage,
-    setItemsPerPage,
-    currentPage,
-    setCurrentPage,
-    filteredProducts,
-    totalPages,
-    paginatedProducts,
-    cartItems,
-    cartItemCount,
-    isCartOpen,
-    setIsCartOpen,
-    handleAddToCart,
-    handleUpdateCartQuantity,
-    handleRemoveFromCart,
-    clearCart
-  } = useProductCatalog();
-
-  const isClient = role === ROLES.CLIENT;
-
-  /**
-   * Cierra el ciclo del carrito: convierte lo que hay dentro en un pedido
-   * real y lleva a la persona a la pantalla donde puede seguirlo.
-   * Si lo hace el cliente, el pedido queda sin vendedor asignado.
-   */
-  const handleConfirmOrder = () => {
-    if (cartItems.length === 0) return;
-
-    createOrder({
-      customer: user?.name ?? "",
-      seller: null,
-      items: cartItems.map((item) => ({
-        productId: item.id,
-        productName: item.name,
-        quantity: item.quantity,
-        unitPrice: item.price,
-        discount: 0
-      })),
-      channel: "web",
-      notes: "Pedido generado desde el catálogo."
-    });
-
-    clearCart();
-    setIsCartOpen(false);
-    navigate("/panel/pedidos");
+  const agregar = (product) => {
+    if (cart.add(product)) {
+      toast.success(`${product.name} agregado al carrito`, { action: { label: "Ver carrito", onClick: cart.open } });
+    } else {
+      toast.error(`Solo hay ${product.stock} unidad(es) de ${product.name}.`);
+    }
   };
+
+  const cantidadEnCarrito = (id) => cart.items.find((i) => i.id === id)?.quantity ?? 0;
 
   return (
     <div className="space-y-6">
-      <ProductCatalogHeader cartItemCount={cartItemCount} onViewCart={() => setIsCartOpen(true)} />
+      <ProductCatalogHeader cartItemCount={cart.count} onViewCart={cart.open} showCart={isClient} />
 
       <ProductCatalogFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        availabilityFilter={availabilityFilter}
-        onAvailabilityChange={setAvailabilityFilter}
-        sortBy={sortBy}
-        onSortByChange={setSortBy}
-        sortDirection={sortDirection}
-        onSortDirectionChange={setSortDirection}
-        sortOptions={sortOptions}
-        itemsPerPage={itemsPerPage}
-        onItemsPerPageChange={setItemsPerPage}
+        searchQuery={c.searchQuery}
+        onSearchChange={c.setSearchQuery}
+        availabilityFilter={c.availabilityFilter}
+        onAvailabilityChange={c.setAvailabilityFilter}
+        sortBy={c.sortBy}
+        onSortByChange={c.setSortBy}
+        sortDirection={c.sortDirection}
+        onSortDirectionChange={c.setSortDirection}
+        sortOptions={c.sortOptions}
+        itemsPerPage={c.itemsPerPage}
+        onItemsPerPageChange={c.setItemsPerPage}
       />
 
-      <ProductCategoryTabs
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-      />
+      <ProductCategoryTabs categories={c.categories} selectedCategory={c.selectedCategory} onSelectCategory={c.setSelectedCategory} />
 
-      <ProductGrid products={paginatedProducts} onAddToCart={handleAddToCart} />
-
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filteredProducts.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-        />
+      {c.error ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center">
+          <p className="text-destructive">{c.error}</p>
+          <button type="button" className="mt-2 text-sm text-primary underline" onClick={c.reload}>
+            Reintentar
+          </button>
+        </div>
+      ) : c.isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((k) => (
+            <div key={k} className="h-96 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
+      ) : c.filteredProducts.length === 0 ? (
+        <p className="py-16 text-center text-muted-foreground">No hay productos con estos filtros.</p>
+      ) : (
+        <ProductGrid products={c.paginatedProducts} onAddToCart={isClient ? agregar : undefined} cantidadEnCarrito={cantidadEnCarrito} />
       )}
 
-      <CartModal
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={cartItems}
-        onUpdateQuantity={handleUpdateCartQuantity}
-        onRemoveItem={handleRemoveFromCart}
-        onConfirmOrder={handleConfirmOrder}
-        canOrder={isClient && can("orders.create")}
-      />
+      {c.totalPages > 1 && (
+        <Pagination
+          currentPage={c.currentPage}
+          totalPages={c.totalPages}
+          totalItems={c.filteredProducts.length}
+          itemsPerPage={c.itemsPerPage}
+          onPageChange={c.setCurrentPage}
+        />
+      )}
     </div>
   );
 }

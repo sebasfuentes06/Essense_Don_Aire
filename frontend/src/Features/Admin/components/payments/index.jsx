@@ -2,8 +2,9 @@ import { PaymentsHeader } from "./PaymentsHeader";
 import { PaymentsStats } from "./PaymentsStats";
 import { PaymentsFiltersBar } from "./PaymentsFiltersBar";
 import { PaymentsTable } from "./PaymentsTable";
-import { AccountStatementTable } from "./AccountStatementTable";
-import { AccountStatementModal } from "./AccountStatementModal";
+import { CarteraTable } from "./CarteraTable";
+import { ClientOpenSales } from "./ClientOpenSales";
+import { PaymentDetailModal } from "./PaymentDetailModal";
 import { PaymentFormModal } from "./PaymentFormModal";
 
 export {
@@ -11,7 +12,8 @@ export {
   PaymentsStats,
   PaymentsFiltersBar,
   PaymentsTable,
-  AccountStatementTable,
-  AccountStatementModal,
+  CarteraTable,
+  ClientOpenSales,
+  PaymentDetailModal,
   PaymentFormModal
 };

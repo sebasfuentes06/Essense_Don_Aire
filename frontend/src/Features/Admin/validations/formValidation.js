@@ -147,9 +147,8 @@ const validateProductForm = ({ nombre, sku, categoriaValue, proveedorValue, prec
     errors.stock_minimo = "El stock mínimo no puede ser negativo.";
   }
 
-  if (Number(stockMinimo) > Number(stock) && Number(stock) >= 0 && Number(stockMinimo) >= 0) {
-    errors.stock_minimo = "El stock mínimo no puede ser mayor que el stock actual.";
-  }
+  // Que el stock quede por debajo del mínimo es justo lo que dispara la
+  // alerta de "stock bajo": no es un error del formulario.
 
   return errors;
 };

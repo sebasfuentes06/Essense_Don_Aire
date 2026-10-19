@@ -2,7 +2,8 @@ import { Navigate, Route, Routes, useNavigate } from "react-router";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, useAuth, ROLES } from "../shared/auth";
 import { OrdersProvider } from "../shared/orders";
-import { PaymentsProvider } from "../shared/payments";
+import { CartProvider } from "../shared/cart";
+import { Toaster } from "sonner";
 import { ProtectedRoute } from "../shared/routes";
 import { AdminLayout } from "./Admin/components/layout";
 import {
@@ -130,9 +131,10 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <OrdersProvider>
-          <PaymentsProvider>
+          <CartProvider>
             <AppRoutes />
-          </PaymentsProvider>
+            <Toaster richColors position="top-right" closeButton />
+          </CartProvider>
         </OrdersProvider>
       </AuthProvider>
     </ThemeProvider>

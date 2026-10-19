@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "../../../../shared/api";
 
 /**
- * Proveedores, ya contra la API.
+ * Proveedores, contra la API de la app móvil (la misma base de datos).
  *
  * Tres cambios de fondo respecto a la versión anterior:
  *
@@ -70,6 +70,25 @@ function aFormulario(proveedor) {
   };
 }
 
+/** Proveedor de la API de la app -> campos que usan los componentes. */
+function aProveedor(p) {
+  return {
+    id: p.id_proveedor,
+    name: p.nombre,
+    contact: p.contacto ?? "",
+    email: p.email ?? "",
+    phone: p.telefono ?? "",
+    city: p.ciudad ?? "",
+    rating: Number(p.calificacion ?? 0),
+    reviews: Number(p.cantidad_resenas ?? 0),
+    status: p.estado ? "active" : "inactive",
+    since: p.fecha_alta,
+    totalProducts: Number(p.total_productos ?? 0),
+    totalOrders: Number(p.total_compras ?? 0),
+    totalSpent: Number(p.total_comprado ?? 0)
+  };
+}
+
 function useSuppliers() {
   const [suppliers, setSuppliers] = useState([]);
   const [exportRows, setExportRows] = useState([]);
@@ -111,85 +130,57 @@ function useSuppliers() {
     return () => clearTimeout(id);
   }, [searchQuery]);
 
-  const filtros = {
-    search: searchTerm,
-    status: statusFilter,
-    city: cityFilter === "all" ? "" : cityFilter,
-    sortBy,
-    sortDir: sortDirection
-  };
+  // Se trae la lista completa una vez (son pocos) y se filtra, ordena y
+  // pagina en el navegador; así los indicadores cuentan todos los proveedores.
+  const [allSuppliers, setAllSuppliers] = useState([]);
 
   const fetchSuppliers = useCallback(async () => {
     setIsLoading(true);
     setLoadError("");
     try {
-      const { data, stats: resumen, meta } = await api.get("/proveedores", {
-        search: searchTerm,
-        status: statusFilter,
-        city: cityFilter === "all" ? "" : cityFilter,
-        sortBy,
-        sortDir: sortDirection,
-        page: currentPage,
-        limit: itemsPerPage
-      });
-      setSuppliers(data ?? []);
-      setStats(resumen ?? emptyStats);
-      setTotalItems(meta?.total ?? 0);
-      setTotalPages(meta?.totalPages ?? 1);
+      setAllSuppliers((await api.todos("/proveedores")).map(aProveedor));
     } catch (error) {
-      setSuppliers([]);
-      setTotalItems(0);
-      setLoadError(
-        error instanceof ApiError ? error.message : "No se pudieron cargar los proveedores."
-      );
+      setAllSuppliers([]);
+      setLoadError(error instanceof ApiError ? error.message : "No se pudieron cargar los proveedores.");
     } finally {
       setIsLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter, cityFilter, sortBy, sortDirection, currentPage, itemsPerPage]);
-
-  /**
-   * Las filas para el CSV.
-   *
-   * El botón exporta lo que se está viendo filtrado, pero ahora la tabla solo
-   * tiene en memoria la página actual: si se le pasara eso, "Exportar" se
-   * llevaría diez filas de cincuenta sin avisar. Por eso se piden aparte, sin
-   * paginar. El tope de la API son 100 por petición; si algún día hay más
-   * proveedores que eso habrá que exportar desde el servidor.
-   */
-  const fetchExportRows = useCallback(async () => {
-    try {
-      const { data } = await api.get("/proveedores", { ...filtros, page: 1, limit: 100 });
-      setExportRows(data ?? []);
-    } catch {
-      // Que falle la exportación no debe romper la pantalla: el botón
-      // simplemente queda deshabilitado por no tener filas.
-      setExportRows([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter, cityFilter, sortBy, sortDirection]);
+  }, []);
 
   useEffect(() => {
     fetchSuppliers();
   }, [fetchSuppliers]);
 
   useEffect(() => {
-    fetchExportRows();
-  }, [fetchExportRows]);
-
-  /** Las ciudades que hay en uso, para el desplegable del filtro. */
-  const fetchCities = useCallback(async () => {
-    try {
-      const { ciudades } = await api.get("/proveedores/ciudades");
-      setCities(ciudades ?? []);
-    } catch {
-      setCities([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCities();
-  }, [fetchCities]);
+    const q = searchTerm.trim().toLowerCase();
+    const filtrados = allSuppliers.filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (cityFilter !== "all" && p.city !== cityFilter) return false;
+      if (!q) return true;
+      return [p.name, p.contact, p.email, p.city].some((v) => String(v ?? "").toLowerCase().includes(q));
+    });
+    const dir = sortDirection === "desc" ? -1 : 1;
+    filtrados.sort((a, b) => {
+      const x = a[sortBy];
+      const y = b[sortBy];
+      if (typeof x === "number" || typeof y === "number") return (Number(x ?? 0) - Number(y ?? 0)) * dir;
+      return String(x ?? "").localeCompare(String(y ?? ""), "es") * dir;
+    });
+    const paginas = Math.max(1, Math.ceil(filtrados.length / itemsPerPage));
+    setExportRows(filtrados);
+    setTotalItems(filtrados.length);
+    setTotalPages(paginas);
+    setSuppliers(filtrados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage));
+    setCities([...new Set(allSuppliers.map((p) => p.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")));
+    const activos = allSuppliers.filter((p) => p.status === "active");
+    setStats({
+      total: allSuppliers.length,
+      activos: activos.length,
+      inactivos: allSuppliers.length - activos.length,
+      calificacionPromedio: allSuppliers.length ? allSuppliers.reduce((t, p) => t + p.rating, 0) / allSuppliers.length : 0,
+      totalProductos: allSuppliers.reduce((t, p) => t + p.totalProducts, 0)
+    });
+  }, [allSuppliers, searchTerm, statusFilter, cityFilter, sortBy, sortDirection, currentPage, itemsPerPage]);
 
   const resetPage = () => setCurrentPage(1);
   const handleSearchChange = (value) => setSearchQuery(value);
@@ -214,21 +205,19 @@ function useSuppliers() {
     try {
       await accion();
       await fetchSuppliers();
-      await fetchExportRows();
-      await fetchCities();
       return true;
     } catch (error) {
       setActionError(
         error instanceof ApiError ? error.message : "No se pudo completar la operación."
       );
-      if (error?.details) setFormErrors(error.details);
+      if (error?.details) setFormErrors({ ...error.details, resenas: error.details.cantidad_resenas });
       return false;
     }
   };
 
   const handleToggleStatus = (supplier) =>
     run(() =>
-      api.patch(`/proveedores/${supplier.id}/estado`, { estado: supplier.status !== "active" })
+      api.put(`/proveedores/${supplier.id}`, { estado: supplier.status !== "active" })
     );
 
   const handleDelete = (supplier) => {
@@ -305,8 +294,8 @@ function useSuppliers() {
       email: supplierForm.email ?? "",
       telefono: supplierForm.telefono ?? supplierForm.phone ?? "",
       ciudad: supplierForm.ciudad ?? supplierForm.city ?? "",
-      calificacion: supplierForm.calificacion,
-      resenas: supplierForm.resenas,
+      ...(supplierForm.calificacion !== "" && supplierForm.calificacion != null && { calificacion: Number(supplierForm.calificacion) }),
+      ...(supplierForm.resenas !== "" && supplierForm.resenas != null && { cantidad_resenas: Number(supplierForm.resenas) }),
       estado: supplierForm.estado ?? supplierForm.status === "active"
     };
 

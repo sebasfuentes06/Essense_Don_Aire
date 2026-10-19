@@ -66,7 +66,8 @@ function PurchasesTable({
             const cancelada = compra.status === "cancelled";
             const saldo = Number(compra.balance ?? 0);
             const items = Array.isArray(compra.items) ? compra.items : [];
-            const unidades = items.reduce((suma, i) => suma + Number(i.quantity ?? 0), 0);
+            const unidades = compra.units ?? items.reduce((suma, i) => suma + Number(i.quantity ?? 0), 0);
+            const lineas = compra.lines ?? items.length;
 
             return (
               <TableRow key={compra.id} className={cancelada ? "opacity-60" : undefined}>
@@ -75,7 +76,7 @@ function PurchasesTable({
                 <TableCell>{compra.supplierName}</TableCell>
 
                 <TableCell className="whitespace-nowrap">
-                  <Badge>{items.length} × {unidades} und</Badge>
+                  <Badge>{lineas} prod. · {unidades} und</Badge>
                 </TableCell>
 
                 <TableCell className="whitespace-nowrap font-medium text-foreground">
