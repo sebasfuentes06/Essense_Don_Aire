@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin, Star } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import { Modal } from "../../../../shared/components/ui/Modal";
 import { Badge } from "../../../../shared/components/ui/Badge";
 
@@ -36,7 +36,6 @@ function SupplierDetailModal({ isOpen, onClose, supplier }) {
   const productos = supplier.totalProducts ?? 0;
   const ordenes = supplier.totalOrders ?? 0;
   const comprado = Number(supplier.totalSpent ?? 0);
-  const calificacion = Number(supplier.rating ?? 0);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" title="Detalles del proveedor">
@@ -117,17 +116,6 @@ function SupplierDetailModal({ isOpen, onClose, supplier }) {
               <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
               {[supplier.city, supplier.department].filter(Boolean).join(", ") || "No registrada"}
             </span>
-          </Dato>
-
-          <Dato etiqueta="Calificación">
-            {calificacion > 0 ? (
-              <span className="flex items-center gap-2">
-                <Star className="h-4 w-4 fill-primary text-primary" />
-                {calificacion.toFixed(1)} de 5
-              </span>
-            ) : (
-              "Sin calificar"
-            )}
           </Dato>
 
           <Dato etiqueta="Proveedor desde">

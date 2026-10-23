@@ -7,10 +7,16 @@ import { useAuth } from "../auth";
  * Es UN solo carrito para toda la web, fuera de las pantallas: no se pierde
  * al cambiar de módulo ni al recargar la página, porque se guarda en el
  * navegador, uno por usuario.
+ *
+ * Un visitante sin sesión también tiene carrito (el de la vitrina). Cuando
+ * inicia sesión como Cliente, lo que agregó pasa a su carrito.
  */
 const CartContext = createContext(undefined);
 
+const INVITADO = "invitado";
 const clave = (idUsuario) => `eda_carrito_${idUsuario}`;
+/** Marca que deja el visitante al pulsar "Finalizar compra" antes de entrar. */
+export const MARCA_FINALIZAR = "eda_finalizar_compra";
 
 function leer(idUsuario) {
   try {
@@ -26,23 +32,51 @@ function CartProvider({ children }) {
   const { user } = useAuth();
   const idUsuario = user?.id ?? null;
   const [items, setItems] = useState([]);
+  // De quién son los `items` en memoria. Evita guardar el carrito de un
+  // usuario con la clave de otro justo cuando cambia la sesión.
+  const [cargadoPara, setCargadoPara] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Al entrar (o cambiar de usuario) se recupera su carrito guardado.
+  const dueno = idUsuario ?? INVITADO;
+  const esCliente = user?.role === "Cliente";
+
+  // Al entrar (o cambiar de usuario) se recupera su carrito guardado. Si es un
+  // Cliente y venía con un carrito de visitante, se suman (sin pasar el stock).
   useEffect(() => {
-    setItems(idUsuario ? leer(idUsuario) : []);
-  }, [idUsuario]);
+    const propio = leer(dueno);
+    if (idUsuario && esCliente) {
+      const invitado = leer(INVITADO);
+      if (invitado.length) {
+        const unido = [...propio];
+        for (const linea of invitado) {
+          const actual = unido.find((i) => i.id === linea.id);
+          if (actual) actual.quantity = Math.min(actual.quantity + linea.quantity, linea.stock ?? Infinity);
+          else unido.push(linea);
+        }
+        try {
+          window.localStorage.removeItem(clave(INVITADO));
+        } catch {
+          /* nada */
+        }
+        setItems(unido);
+        setCargadoPara(dueno);
+        return;
+      }
+    }
+    setItems(propio);
+    setCargadoPara(dueno);
+  }, [dueno, idUsuario, esCliente]);
 
   // Cada cambio se guarda.
   useEffect(() => {
-    if (!idUsuario) return;
+    if (cargadoPara !== dueno) return;
     try {
-      if (items.length) window.localStorage.setItem(clave(idUsuario), JSON.stringify(items));
-      else window.localStorage.removeItem(clave(idUsuario));
+      if (items.length) window.localStorage.setItem(clave(dueno), JSON.stringify(items));
+      else window.localStorage.removeItem(clave(dueno));
     } catch {
       /* sin almacenamiento: el carrito vive en memoria */
     }
-  }, [items, idUsuario]);
+  }, [items, dueno, cargadoPara]);
 
   /** Agrega unidades. Devuelve false si se pasaría del stock. */
   const add = useCallback(

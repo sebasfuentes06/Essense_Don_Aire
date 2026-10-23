@@ -1,4 +1,4 @@
-import { Package, TrendingUp, Boxes, Star } from "lucide-react";
+import { Package, TrendingUp, Boxes, ShoppingBag } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
 
 /**
@@ -9,11 +9,10 @@ import { Card } from "../../../../shared/components/ui/Card";
  * daría "Total Proveedores: 10" habiendo treinta, y el número cambiaría al
  * pasar de página.
  *
- * La calificación promedio solo considera proveedores con al menos una
- * reseña: los recién creados entran con 0 y, si se promediaran, arrastrarían
- * el indicador hacia abajo por no haber sido calificados todavía.
  */
-function SupplierStats({ totalSuppliers = 0, activeSuppliers = 0, totalProducts = 0, avgRating = "0.0" }) {
+const moneda = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+
+function SupplierStats({ totalSuppliers = 0, activeSuppliers = 0, totalProducts = 0, totalPurchased = 0 }) {
   const tarjetas = [
     {
       etiqueta: "Total Proveedores",
@@ -37,10 +36,10 @@ function SupplierStats({ totalSuppliers = 0, activeSuppliers = 0, totalProducts 
       tono: "text-primary"
     },
     {
-      etiqueta: "Calificación Promedio",
-      valor: Number(avgRating) > 0 ? `${avgRating} ⭐` : "Sin calificar",
+      etiqueta: "Total Comprado",
+      valor: moneda.format(Number(totalPurchased) || 0),
       color: "text-foreground",
-      Icono: Star,
+      Icono: ShoppingBag,
       tono: "text-primary"
     }
   ];

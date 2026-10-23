@@ -8,3 +8,4 @@ export { CampoComprobante } from "./CampoComprobante";
 export { SelectorMetodo, CamposPago, PAGO_VACIO, pagoAApi } from "./CamposPago";
 export { BuscadorImagenes } from "./BuscadorImagenes";
 export { imprimirFactura } from "./factura";
+export { ProductoDetalle } from "./ProductoDetalle";

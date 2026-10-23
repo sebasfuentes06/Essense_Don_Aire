@@ -2,6 +2,8 @@ import { Menu, X } from 'lucide-react';
 import { useMobileMenu } from '../Hooks/useMobileMenu';
 
 const NAV_ITEMS = ['Inicio', 'Catálogo', 'Nosotros', 'Contacto'];
+// "Catálogo" -> "#catalogo": los id de las secciones van sin tildes.
+const ancla = (item) => `#${item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()}`;
 
 export function Navbar({ onLogin }) {
   const { isOpen, toggle, close } = useMobileMenu();
@@ -20,7 +22,7 @@ export function Navbar({ onLogin }) {
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
           {NAV_ITEMS.map(item => (
-            <a key={item} href={`#${item.toLowerCase()}`}
+            <a key={item} href={ancla(item)}
               className="text-white/70 hover:text-[#C9A227] transition-colors text-sm tracking-wide">{item}</a>
           ))}
         </div>
@@ -41,7 +43,7 @@ export function Navbar({ onLogin }) {
       {isOpen && (
         <div className="md:hidden bg-black/95 border-t border-white/10 px-6 py-4 space-y-4">
           {NAV_ITEMS.map(item => (
-            <a key={item} href={`#${item.toLowerCase()}`} onClick={close}
+            <a key={item} href={ancla(item)} onClick={close}
               className="block text-white/70 hover:text-[#C9A227] transition-colors py-2">{item}</a>
           ))}
           <button onClick={onLogin}

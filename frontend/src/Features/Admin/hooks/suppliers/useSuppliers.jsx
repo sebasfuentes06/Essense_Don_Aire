@@ -22,7 +22,6 @@ const sortOptions = [
   { value: "totalSpent", label: "Total comprado" },
   { value: "totalOrders", label: "N° de órdenes" },
   { value: "totalProducts", label: "N° de productos" },
-  { value: "rating", label: "Calificación" },
   { value: "since", label: "Antigüedad" }
 ];
 
@@ -189,7 +188,8 @@ function useSuppliers() {
       total: allSuppliers.length,
       activos: activos.length,
       inactivos: allSuppliers.length - activos.length,
-      calificacionPromedio: allSuppliers.length ? allSuppliers.reduce((t, p) => t + p.rating, 0) / allSuppliers.length : 0,
+      calificacionPromedio: 0,
+      totalComprado: allSuppliers.reduce((t, p) => t + p.totalSpent, 0),
       totalProductos: allSuppliers.reduce((t, p) => t + p.totalProducts, 0)
     });
   }, [allSuppliers, searchTerm, statusFilter, cityFilter, sortBy, sortDirection, currentPage, itemsPerPage]);
@@ -310,7 +310,6 @@ function useSuppliers() {
       email: supplierForm.email ?? "",
       telefono: supplierForm.telefono ?? supplierForm.phone ?? "",
       ciudad: supplierForm.ciudad ?? supplierForm.city ?? "",
-      ...(supplierForm.calificacion !== "" && supplierForm.calificacion != null && { calificacion: Number(supplierForm.calificacion) }),
       estado: supplierForm.estado ?? supplierForm.status === "active"
     };
 
@@ -371,6 +370,7 @@ function useSuppliers() {
     activeSuppliers: stats.activos,
     totalProducts: stats.totalProductos,
     avgRating: Number(stats.calificacionPromedio ?? 0).toFixed(1),
+    totalPurchased: stats.totalComprado ?? 0,
     refresh: fetchSuppliers,
     handleDelete,
     confirmDelete,

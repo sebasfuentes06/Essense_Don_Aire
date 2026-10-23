@@ -32,8 +32,6 @@ function validar(f) {
   if (!isBlank(f.telefono) && !phonePattern.test(String(f.telefono).trim())) e.telefono = "El teléfono no tiene un formato válido.";
   if (isBlank(f.departamento)) e.departamento = "Elige el departamento.";
   if (isBlank(f.ciudad)) e.ciudad = "Elige la ciudad.";
-  const cal = f.calificacion;
-  if (cal !== "" && cal != null && !(Number(cal) >= 0 && Number(cal) <= 5)) e.calificacion = "Entre 0 y 5.";
   return e;
 }
 
@@ -144,17 +142,6 @@ function SupplierFormModal({ isOpen, onClose, isEditing, supplierForm, onFormCha
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            label="Calificación (0 a 5)"
-            type="number"
-            min="0"
-            max="5"
-            step="0.1"
-            value={f.calificacion ?? ""}
-            error={errors.calificacion}
-            onChange={(e) => set({ calificacion: e.target.value })}
-            placeholder="4.5"
-          />
           <Select
             label="Estado"
             value={f.estado === false || f.status === "inactive" ? "inactive" : "active"}

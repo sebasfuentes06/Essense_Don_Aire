@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { toast } from "sonner";
+import { ProductoDetalle } from "../../../../shared/negocio";
 import { Pagination } from "../../../../shared/components/ui/Pagination";
 import { useAuth, ROLES } from "../../../../shared/auth";
 import { useCart } from "../../../../shared/cart";
@@ -21,12 +23,16 @@ function ProductCatalog() {
   const c = useProductCatalog();
   const isClient = role === ROLES.CLIENT && can("orders.create");
 
-  const agregar = (product) => {
-    if (cart.add(product)) {
+  const [detalle, setDetalle] = useState(null);
+
+  const agregar = (product, cantidad = 1) => {
+    if (cart.add(product, cantidad)) {
       toast.success(`${product.name} agregado al carrito`, { action: { label: "Ver carrito", onClick: cart.open } });
     } else {
       toast.error(`Solo hay ${product.stock} unidad(es) de ${product.name}.`);
+      return false;
     }
+    return true;
   };
 
   const cantidadEnCarrito = (id) => cart.items.find((i) => i.id === id)?.quantity ?? 0;
@@ -67,8 +73,15 @@ function ProductCatalog() {
       ) : c.filteredProducts.length === 0 ? (
         <p className="py-16 text-center text-muted-foreground">No hay productos con estos filtros.</p>
       ) : (
-        <ProductGrid products={c.paginatedProducts} onAddToCart={isClient ? agregar : undefined} cantidadEnCarrito={cantidadEnCarrito} />
+        <ProductGrid products={c.paginatedProducts} onAddToCart={isClient ? (p) => agregar(p) : undefined} onView={setDetalle} cantidadEnCarrito={cantidadEnCarrito} />
       )}
+
+      <ProductoDetalle
+        product={detalle}
+        onClose={() => setDetalle(null)}
+        onAgregar={isClient ? agregar : undefined}
+        enCarrito={detalle ? cantidadEnCarrito(detalle.id) : 0}
+      />
 
       {c.totalPages > 1 && (
         <Pagination

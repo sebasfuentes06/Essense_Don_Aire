@@ -1,13 +1,17 @@
-import { Flower2, ShoppingCart } from "lucide-react";
+import { Eye, Flower2, ShoppingCart } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
 import { Button } from "../../../../shared/components/ui/button";
 import { dinero } from "../../../../shared/negocio";
 
 /** Tarjeta de un producto real de la API, con su foto. */
-function ProductCard({ product, onAddToCart, inCart = 0 }) {
+function ProductCard({ product, onAddToCart, onView, inCart = 0 }) {
   return (
     <Card hover className="overflow-hidden group">
-      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
+      <div
+        className={`relative aspect-[4/5] overflow-hidden bg-muted ${onView ? "cursor-pointer" : ""}`}
+        onClick={onView ? () => onView(product) : undefined}
+        title={onView ? "Ver detalle" : undefined}
+      >
         {product.image ? (
           <img
             src={product.image}
@@ -34,7 +38,12 @@ function ProductCard({ product, onAddToCart, inCart = 0 }) {
       <div className="p-5">
         <div className="mb-3">
           <span className="text-xs font-medium text-primary uppercase tracking-wide">{product.category}</span>
-          <h3 className="text-xl font-semibold text-foreground mt-1 mb-1">{product.name}</h3>
+          <h3
+            className={`text-xl font-semibold text-foreground mt-1 mb-1 ${onView ? "cursor-pointer hover:text-primary" : ""}`}
+            onClick={onView ? () => onView(product) : undefined}
+          >
+            {product.name}
+          </h3>
           {product.description && <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>}
         </div>
         <div className="flex items-center justify-between gap-3">
@@ -45,12 +54,19 @@ function ProductCard({ product, onAddToCart, inCart = 0 }) {
               {inCart > 0 && ` · ${inCart} en tu carrito`}
             </p>
           </div>
+          <div className="flex gap-2">
+          {onView && (
+            <Button variant="outline" size="icon" onClick={() => onView(product)} title="Ver detalle" aria-label={`Ver detalle de ${product.name}`}>
+              <Eye className="h-4 w-4" />
+            </Button>
+          )}
           {onAddToCart && (
             <Button disabled={!product.inStock} onClick={() => onAddToCart(product)}>
               <ShoppingCart className="h-4 w-4" />
               {product.inStock ? "Agregar" : "Agotado"}
             </Button>
           )}
+          </div>
         </div>
       </div>
     </Card>

@@ -6,7 +6,7 @@ import { Card, CardContent } from "../../../shared/components/ui/Card";
 import { useAuth } from "../../../shared/auth";
 import { useCart } from "../../../shared/cart";
 import { useOrdersStore, ORDER_STATUS } from "../../../shared/orders";
-import { ventas, dinero } from "../../../shared/negocio";
+import { ventas, dinero, ProductoDetalle } from "../../../shared/negocio";
 import { useProductCatalog } from "../../Admin/hooks/productCatalog";
 import { ProductCard } from "../../Admin/components/productCatalog/ProductCard";
 
@@ -21,6 +21,7 @@ function ClientHome() {
   const { products, isLoading } = useProductCatalog();
   const { orders } = useOrdersStore();
   const [saldo, setSaldo] = useState(null);
+  const [detalle, setDetalle] = useState(null);
 
   useEffect(() => {
     ventas
@@ -35,9 +36,13 @@ function ClientHome() {
   const pendientes = orders.filter((o) => o.status === ORDER_STATUS.PENDING).length;
   const enCarrito = (id) => cart.items.find((i) => i.id === id)?.quantity ?? 0;
 
-  const agregar = (product) => {
-    if (cart.add(product)) toast.success(`${product.name} agregado al carrito`, { action: { label: "Ver carrito", onClick: cart.open } });
-    else toast.error(`Solo hay ${product.stock} unidad(es) de ${product.name}.`);
+  const agregar = (product, cantidad = 1) => {
+    if (cart.add(product, cantidad)) {
+      toast.success(`${product.name} agregado al carrito`, { action: { label: "Ver carrito", onClick: cart.open } });
+      return true;
+    }
+    toast.error(`Solo hay ${product.stock} unidad(es) de ${product.name}.`);
+    return false;
   };
 
   const stats = [
@@ -114,11 +119,12 @@ function ClientHome() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {novedades.map((product) => (
-              <ProductCard key={product.id} product={product} onAddToCart={agregar} inCart={enCarrito(product.id)} />
+              <ProductCard key={product.id} product={product} onAddToCart={(p) => agregar(p)} onView={setDetalle} inCart={enCarrito(product.id)} />
             ))}
           </div>
         )}
       </div>
+      <ProductoDetalle product={detalle} onClose={() => setDetalle(null)} onAgregar={agregar} enCarrito={detalle ? enCarrito(detalle.id) : 0} />
     </div>
   );
 }

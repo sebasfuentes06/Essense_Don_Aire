@@ -8,6 +8,7 @@ import { useAuth } from "../auth";
 import { useOrdersStore } from "../orders";
 import { useCart } from "./CartContext";
 import { dinero, METODOS_PEDIDO_CLIENTE, clientes, pagos, leerImagen } from "../negocio";
+import { CamposUbicacion } from "../persona/CamposUbicacion";
 
 /**
  * Carrito y "Hacer pedido" del Cliente (mismo flujo que la app móvil):
@@ -24,6 +25,9 @@ function CartModal() {
   const [paso, setPaso] = useState("carrito");
   const [metodo, setMetodo] = useState("");
   const [direccion, setDireccion] = useState("");
+  const [departamento, setDepartamento] = useState("Antioquia");
+  const [ciudad, setCiudad] = useState("");
+  const [fichaCargada, setFichaCargada] = useState(false);
   const [notas, setNotas] = useState("");
   const [referencia, setReferencia] = useState("");
   const [comprobante, setComprobante] = useState(null);
@@ -35,10 +39,16 @@ function CartModal() {
   useEffect(() => {
     if (!cart.isOpen || paso !== "pago") return;
     pagos.datosPago().then(setDatosPago);
-    if (!direccion && user?.idCliente) {
+    // La primera vez se llena con la dirección de su ficha (se puede cambiar).
+    if (!fichaCargada && user?.idCliente) {
+      setFichaCargada(true);
       clientes
         .obtener(user.idCliente)
-        .then((c) => setDireccion([c.address, c.city].filter(Boolean).join(", ")))
+        .then((c) => {
+          setDireccion(c.address ?? "");
+          setDepartamento(c.department || "Antioquia");
+          setCiudad(c.city ?? "");
+        })
         .catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,12 +74,14 @@ function CartModal() {
     setError("");
     if (!metodo) return setError("Elige cómo vas a pagar tu pedido.");
     if (metodo === "transferencia" && !comprobante) return setError("Adjunta la foto del comprobante de la transferencia.");
+    if (!departamento || !ciudad.trim()) return setError("Elige el departamento y el municipio de entrega.");
+    if (!direccion.trim()) return setError("Escribe la dirección de entrega.");
     setEnviando(true);
     try {
       const { order, message } = await createOrder({
         metodo_pago: metodo,
         items: cart.items.map((i) => ({ id_producto: i.id, cantidad: i.quantity })),
-        direccion_entrega: direccion.trim(),
+        direccion_entrega: [direccion.trim(), ciudad.trim(), departamento].filter(Boolean).join(", ").slice(0, 150),
         notas: notas.trim(),
         ...(metodo === "transferencia" && {
           comprobante: { base64: comprobante.base64, tipo_mime: comprobante.tipo_mime },
@@ -216,11 +228,22 @@ function CartModal() {
           )}
 
           <div className="space-y-3">
+            <p className="text-sm font-semibold text-foreground">¿A dónde lo enviamos?</p>
+            <CamposUbicacion
+              departamento={departamento}
+              ciudad={ciudad}
+              onCambio={({ departamento: d, ciudad: c }) => {
+                setDepartamento(d);
+                setCiudad(c);
+              }}
+            />
             <label className="block text-sm font-medium text-foreground">
-              Dirección de entrega
+              Dirección (calle, número, barrio) *
               <input
                 value={direccion}
                 onChange={(e) => setDireccion(e.target.value)}
+                maxLength={100}
+                placeholder="Calle 10 # 43-20, barrio El Poblado"
                 className="mt-1 h-10 w-full rounded-xl border border-input bg-input-background px-3 text-sm"
               />
             </label>

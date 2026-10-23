@@ -71,7 +71,8 @@ function OrderFormModal({ isOpen, editingOrder, onSave, onClose }) {
 
   const elegirCliente = (id) => {
     const c = listaClientes.find((x) => String(x.id) === String(id));
-    setForm((f) => ({ ...f, customerId: id, address: f.address || [c?.address, c?.city].filter(Boolean).join(", ") }));
+    // Dirección completa de la ficha: dirección, ciudad y departamento.
+    setForm((f) => ({ ...f, customerId: id, address: [c?.address, c?.city, c?.department].filter(Boolean).join(", ") }));
   };
 
   const guardar = async (e) => {
@@ -106,7 +107,7 @@ function OrderFormModal({ isOpen, editingOrder, onSave, onClose }) {
             onChange={(e) => elegirCliente(e.target.value)}
             options={[
               { value: "", label: listaClientes.length ? "Selecciona el cliente..." : "Cargando clientes..." },
-              ...listaClientes.map((c) => ({ value: String(c.id), label: `${c.name}${c.phone ? ` · ${c.phone}` : ""}` }))
+              ...listaClientes.map((c) => ({ value: String(c.id), label: `${c.name}${c.document ? ` · ${c.document}` : ""}${c.phone ? ` · ${c.phone}` : ""}` }))
             ]}
           />
           {form.channel === "app" ? (
@@ -114,8 +115,8 @@ function OrderFormModal({ isOpen, editingOrder, onSave, onClose }) {
           ) : (
             <Select label="Canal" value={form.channel} onChange={(e) => set("channel", e.target.value)} options={channelOptions} />
           )}
-          <Input label="Dirección de entrega" value={form.address} onChange={(e) => set("address", e.target.value)} />
-          <Input label="Notas" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Opcional" />
+          <Input wrapperClassName="sm:col-span-2" label="Dirección de entrega (completa)" placeholder="Dirección, ciudad, departamento" value={form.address} onChange={(e) => set("address", e.target.value)} />
+          <Input wrapperClassName="sm:col-span-2" label="Notas" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Opcional" />
         </div>
         <div>
           <p className="mb-2 text-sm font-medium text-foreground">Forma de pago (opcional)</p>

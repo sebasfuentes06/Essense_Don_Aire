@@ -1,4 +1,4 @@
-import { Edit, Trash2, Star, MapPin, Eye } from "lucide-react";
+import { Edit, Trash2, MapPin, Eye } from "lucide-react";
 import { Card } from "../../../../shared/components/ui/Card";
 import {
   Table,
@@ -59,7 +59,6 @@ function SupplierTable({
             <TableHead>Productos</TableHead>
             <TableHead>Órdenes</TableHead>
             <TableHead>Comprado</TableHead>
-            <TableHead>Calificación</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead className="w-[1%] text-right">Acciones</TableHead>
           </TableRow>
@@ -71,7 +70,6 @@ function SupplierTable({
             const productos = supplier.totalProducts ?? 0;
             const ordenes = supplier.totalOrders ?? 0;
             const comprado = Number(supplier.totalSpent ?? 0);
-            const calificacion = Number(supplier.rating ?? 0);
 
             return (
               <TableRow key={supplier.id}>
@@ -101,21 +99,6 @@ function SupplierTable({
                 <TableCell>{ordenes}</TableCell>
 
                 <TableCell className="whitespace-nowrap">{moneda.format(comprado)}</TableCell>
-
-                <TableCell className="w-[1%] whitespace-nowrap">
-                  {calificacion > 0 ? (
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-primary text-primary" />
-                      <span className="font-semibold text-foreground">
-                        {calificacion.toFixed(1)}
-                      </span>
-                    </div>
-                  ) : (
-                    // Sin reseñas, un "0.0 ⭐" se lee como un proveedor pésimo
-                    // cuando en realidad es uno que nadie ha calificado todavía.
-                    <span className="text-xs text-muted-foreground">Sin calificar</span>
-                  )}
-                </TableCell>
 
                 <TableCell>
                   <div className="flex items-center gap-2">

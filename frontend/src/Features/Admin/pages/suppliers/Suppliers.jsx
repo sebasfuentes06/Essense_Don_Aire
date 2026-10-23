@@ -23,7 +23,6 @@ const supplierColumns = [
   { key: "phone", header: "Teléfono" },
   { key: "department", header: "Departamento" },
   { key: "city", header: "Ciudad" },
-  { key: "rating", header: "Calificación", format: "number" },
   { key: "totalProducts", header: "Productos", format: "number" },
   { key: "totalOrders", header: "Órdenes", format: "number" },
   { key: "totalSpent", header: "Total comprado", format: "money" },
@@ -67,7 +66,7 @@ function Suppliers() {
     totalSuppliers,
     activeSuppliers,
     totalProducts,
-    avgRating,
+    totalPurchased,
     handleDelete,
     confirmDelete,
     handleEdit,
@@ -135,7 +134,7 @@ function Suppliers() {
         totalSuppliers={totalSuppliers}
         activeSuppliers={activeSuppliers}
         totalProducts={totalProducts}
-        avgRating={avgRating}
+        totalPurchased={totalPurchased}
       />
 
       <SupplierFilters
