@@ -118,25 +118,32 @@ function LandingCart() {
             ) : (
               <div className="space-y-3 border-t border-border pt-4">
                 <p className="text-sm text-muted-foreground">
-                  Para finalizar la compra inicia sesión con tu cuenta de cliente. ¿Aún no tienes una? Créala: tu carrito queda guardado en este navegador.
+                  Para continuar con tu compra, regístrate como cliente. Tu carrito queda guardado y lo encuentras al entrar con tu cuenta.
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <Button variant="outline" onClick={cart.close}>
                     Seguir comprando
                   </Button>
                   <Button
-                    variant="outline"
                     onClick={() => {
+                      try {
+                        window.sessionStorage.setItem(MARCA_FINALIZAR, "1");
+                      } catch {
+                        /* sin almacenamiento */
+                      }
                       cart.close();
                       navigate("/registro");
                     }}
                   >
-                    <UserPlus className="h-4 w-4" /> Crear cuenta
-                  </Button>
-                  <Button onClick={finalizar}>
-                    <LogIn className="h-4 w-4" /> Iniciar sesión y finalizar
+                    <UserPlus className="h-4 w-4" /> Registrarme para continuar
                   </Button>
                 </div>
+                <p className="text-center text-sm text-muted-foreground sm:text-right">
+                  ¿Ya tienes cuenta?{" "}
+                  <button type="button" onClick={finalizar} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+                    <LogIn className="h-3.5 w-3.5" /> Inicia sesión
+                  </button>
+                </p>
               </div>
             )}
           </div>
