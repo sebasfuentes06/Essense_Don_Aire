@@ -106,7 +106,18 @@ function LandingCart() {
               <span className="text-xl font-bold text-primary">{dinero(cart.total)}</span>
             </div>
 
-            {user ? (
+            {user && role !== ROLES.CLIENT ? (
+              <div className="space-y-3 border-t border-border pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Tienes abierta una sesión de <b className="text-foreground">{role}</b>. Para finalizar la compra, cierra sesión y regístrate o entra con una cuenta de cliente.
+                </p>
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={cart.close}>
+                    Seguir viendo
+                  </Button>
+                </div>
+              </div>
+            ) : user ? (
               <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
                 <Button variant="outline" onClick={cart.close}>
                   Seguir comprando

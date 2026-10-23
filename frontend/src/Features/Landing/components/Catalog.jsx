@@ -22,8 +22,9 @@ function Catalog() {
   const [detalle, setDetalle] = useState(null);
   const cart = useCart();
   const { user, role } = useAuth();
-  // El equipo (admin/vendedor) puede mirar la vitrina, pero no comprar.
-  const puedeComprar = !user || role === ROLES.CLIENT;
+  // Cualquiera arma su carrito en la vitrina. Solo al finalizar se exige una
+  // cuenta de cliente (ver LandingCart).
+  const esEquipo = Boolean(user) && role !== ROLES.CLIENT;
 
   useEffect(() => {
     let vivo = true;
@@ -94,8 +95,8 @@ function Catalog() {
               key={product.id}
               product={product}
               onView={setDetalle}
-              onAdd={puedeComprar ? (p) => agregar(p) : undefined}
-              inCart={puedeComprar ? enCarrito(product.id) : 0}
+              onAdd={(p) => agregar(p)}
+              inCart={enCarrito(product.id)}
             />
           ))}
         </div>
@@ -117,11 +118,11 @@ function Catalog() {
       <ProductoDetalle
         product={detalle}
         onClose={() => setDetalle(null)}
-        onAgregar={puedeComprar ? agregar : undefined}
-        enCarrito={detalle && puedeComprar ? enCarrito(detalle.id) : 0}
-        nota={puedeComprar ? undefined : "Estás con una cuenta del equipo: las compras se hacen con una cuenta de cliente."}
+        onAgregar={agregar}
+        enCarrito={detalle ? enCarrito(detalle.id) : 0}
+        nota={esEquipo ? "Tienes abierta una sesión del equipo: para finalizar una compra hay que entrar con una cuenta de cliente." : undefined}
       />
-      {puedeComprar && <LandingCart />}
+      <LandingCart />
     </section>
   );
 }
